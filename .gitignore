@@ -1,6 +1,8 @@
 # Credentials and local configuration
 .env
 **/.env
+*.env
+**/*.env
 .env.*
 **/.env.*
 !**/.env.example
@@ -9,7 +11,13 @@
 *.pfx
 *.p12
 *.crt
+*.cer
+*.der
+*.jks
+*.keystore
 *.token
+secrets/
+credentials/
 
 # Runtime data and generated packages
 03-本地运行数据/
@@ -25,7 +33,7 @@ build/
 dist/
 user-state.json
 
-# Server-only deployment notes and production records
+# Private production records; public templates live in deploy/
 02-服务器部署/
 05-项目文档/README.md
 05-项目文档/00-中文目录导航.md

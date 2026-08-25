@@ -1,0 +1,39 @@
+# Credentials and local configuration
+.env
+**/.env
+.env.*
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.token
+
+# Runtime data and generated packages
+03-本地运行数据/
+04-构建与成品/
+*.sqlite3*
+*.db
+*.parquet
+*.log
+cache/
+logs/
+data_cache/
+build/
+dist/
+user-state.json
+
+# Server-only deployment notes and production records
+02-服务器部署/
+05-项目文档/README.md
+05-项目文档/00-中文目录导航.md
+05-项目文档/项目目录说明.md
+05-项目文档/上线记录.md
+
+# Local/editor noise
+__pycache__/
+.pytest_cache/
+*.py[cod]
+desktop.ini

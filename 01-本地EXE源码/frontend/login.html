@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="view-transition" content="same-origin">
+<meta name="theme-color" content="#faf9f5">
+<title>登录 · 股析</title>
+<link rel="icon" type="image/png" href="/static/assets/brand/minimal-cat.png">
+<link rel="stylesheet" href="/static/css/auth.css?v=1.0.1">
+<link rel="stylesheet" href="/static/css/global-motion.css?v=1.2.1">
+</head>
+<body>
+<div class="auth-shell">
+  <section class="auth-story" aria-label="股析介绍">
+    <a class="auth-brand" href="/login"><img src="/static/assets/brand/minimal-cat.png" alt=""><span><b>股析</b>公开行情 · 独立判断</span></a>
+    <div class="auth-story-copy"><span class="eyebrow">LOCAL MARKET ANALYSIS</span><h1>看清市场，<br><em>再做判断。</em></h1><p>聚合 A 股、每日关注池与加密货币公开行情，让分析过程更清楚、更可复盘。</p></div>
+    <p class="auth-footnote">仅供学习研究，不构成投资建议；市场有风险，决策自负。请勿在公共设备保存登录状态。</p>
+  </section>
+  <main class="auth-main">
+    <form class="auth-card" id="loginForm" novalidate>
+      <span class="eyebrow">安全登录</span><h2>欢迎回来</h2><p>登录后继续访问市场分析与交易台。</p>
+      <label class="field"><span>用户名</span><input id="username" name="username" autocomplete="username" maxlength="64" required autofocus></label>
+      <label class="field"><span>密码</span><input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+      <button class="primary-button login-submit" id="loginButton" type="submit">登录</button>
+      <p class="form-error" id="loginError" role="alert" aria-live="polite"></p>
+      <p class="auth-disclaimer">账号由站点管理员创建。为保护账户安全，连续登录失败会被临时限制。</p>
+    </form>
+  </main>
+</div>
+<script type="module" src="https://unpkg.com/@formkit/auto-animate@1.0.0-beta.6/index.min.js" integrity="sha384-l9LHGZJ2OhRkiLm2L2YwaVW+t9jIgTzmkHingIAya15C+jNEpmSwWiJklGwb/Ma5" crossorigin="anonymous"></script>
+<script src="/static/js/motion.js?v=1.2.1"></script>
+<script src="/static/js/login.js?v=1.0.0"></script>
+</body>
+</html>

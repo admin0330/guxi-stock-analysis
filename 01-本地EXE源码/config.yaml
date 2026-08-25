@@ -1,0 +1,17 @@
+# 股析便携配置。相对路径均以 A股分析系统.exe 所在目录为基准。
+port: 8765
+open_browser: true
+cache_ttl_short: 30
+cache_ttl_daily: 21600
+cache_ttl_static: 86400
+request_timeout: 5
+max_retries: 2
+crypto_refresh_seconds: 60
+crypto_primary_source: binance
+log_retention_days: 14
+log_level: INFO
+daily_pick_top_k: 8
+daily_pick_pool_size: 48
+daily_pick_min_amount: 100000000
+daily_pick_min_listing_days: 120
+daily_pick_exclude_growth_boards: false

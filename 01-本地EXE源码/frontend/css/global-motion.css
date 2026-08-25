@@ -1,0 +1,161 @@
+/* 股析 · Apple-like 全局微动效：柔和阻尼、双层交叉淡入与递进进场。 */
+:root {
+  --ease-spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring-snappy: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-smooth: cubic-bezier(0.32, 0, 0.67, 0);
+  --dur-instant: 140ms;
+  --dur-fast: 220ms;
+  --dur-smooth: 360ms;
+  --motion-ring: rgba(204, 120, 92, 0.16);
+  --motion-flash: rgba(217, 119, 87, 0.14);
+}
+
+::view-transition-old(root) {
+  animation: smooth-exit var(--dur-fast) var(--ease-in-smooth) both;
+}
+
+::view-transition-new(root) {
+  animation: smooth-enter var(--dur-smooth) var(--ease-spring-soft) both;
+}
+
+:is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]) {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-fast) var(--ease-spring-snappy),
+    box-shadow var(--dur-fast) var(--ease-spring-soft),
+    background-color var(--dur-smooth) var(--ease-out-smooth),
+    border-color var(--dur-smooth) var(--ease-out-smooth),
+    color var(--dur-fast) var(--ease-out-smooth);
+  will-change: transform;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"]):hover {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 16px -2px rgba(28, 25, 23, 0.08), 0 2px 6px -1px rgba(28, 25, 23, 0.04);
+  }
+}
+
+:is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"]):active {
+  transform: scale(0.96) translateY(1px) !important;
+  transition-duration: 80ms !important;
+}
+
+:is(input, textarea, select) {
+  transition:
+    transform var(--dur-fast) var(--ease-spring-soft),
+    border-color var(--dur-fast) var(--ease-out-smooth),
+    box-shadow var(--dur-fast) var(--ease-spring-soft),
+    background-color var(--dur-smooth) var(--ease-out-smooth);
+}
+
+:is(input, textarea, select):focus-visible {
+  outline: 0;
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px var(--motion-ring);
+}
+
+:is(.card, .panel, .auth-card) {
+  transition:
+    transform var(--dur-smooth) var(--ease-spring-soft),
+    box-shadow var(--dur-fast) var(--ease-spring-soft),
+    background-color var(--dur-smooth) var(--ease-out-smooth);
+  will-change: transform;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.card, .panel, .auth-card):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -8px rgba(28, 25, 23, 0.12), 0 3px 8px -4px rgba(28, 25, 23, 0.08);
+  }
+}
+
+.motion-ripple-host {
+  position: relative !important;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+
+.ripple-effect {
+  position: absolute;
+  z-index: 2;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--ripple-rgb, 255, 255, 255), 0.34) 0%, rgba(var(--ripple-rgb, 255, 255, 255), 0) 70%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateZ(0) scale(0);
+  animation: smooth-ripple 450ms var(--ease-out-smooth) forwards;
+}
+
+.stagger-in > * {
+  animation: stagger-item-enter 380ms var(--ease-spring-soft) both;
+}
+
+.stagger-in > *:nth-child(1) { animation-delay: 20ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 45ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 70ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 95ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 120ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 145ms; }
+.stagger-in > *:nth-child(n + 7) { animation-delay: 170ms; }
+
+.smooth-ws-update,
+.ws-flash {
+  animation: smooth-glow 1.4s var(--ease-out-smooth) forwards;
+}
+
+.skeleton {
+  overflow: hidden;
+  background: linear-gradient(100deg, rgba(232, 226, 217, 0.72) 20%, rgba(255, 253, 249, 0.96) 42%, rgba(232, 226, 217, 0.72) 64%);
+  background-size: 240% 100%;
+  animation: motion-shimmer 1.35s var(--ease-out-smooth) infinite;
+}
+
+@keyframes smooth-exit {
+  from { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+  to { opacity: 0; filter: blur(1px); transform: scale(0.99) translateY(-6px); }
+}
+
+@keyframes smooth-enter {
+  from { opacity: 0; filter: blur(2px); transform: scale(0.99) translateY(8px); }
+  to { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+}
+
+@keyframes smooth-ripple {
+  0% { opacity: 0.34; transform: translateZ(0) scale(0); }
+  72% { opacity: 0.1; }
+  100% { opacity: 0; transform: translateZ(0) scale(3.5); }
+}
+
+@keyframes stagger-item-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes smooth-glow {
+  0% { background-color: var(--motion-flash); box-shadow: inset 0 0 0 1px rgba(217, 119, 87, 0.25); }
+  100% { background-color: transparent; box-shadow: inset 0 0 0 1px transparent; }
+}
+
+@keyframes motion-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
+    filter: none;
+    transform: none;
+  }
+
+  :is(button, .btn, a.button, .interactive-item, input, textarea, select, .card, .panel, .auth-card) {
+    transition-duration: 1ms !important;
+    transform: none !important;
+  }
+
+  .ripple-effect { display: none; }
+  .stagger-in > *, .smooth-ws-update, .ws-flash, .skeleton { animation: none !important; }
+}

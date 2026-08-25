@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="view-transition" content="same-origin">
+<meta name="theme-color" content="#faf9f5">
+<title>用户管理 · 股析</title>
+<link rel="icon" type="image/png" href="/static/assets/brand/minimal-cat.png">
+<link rel="stylesheet" href="/static/css/auth.css?v=1.0.1">
+<link rel="stylesheet" href="/static/css/global-motion.css?v=1.2.1">
+</head>
+<body class="admin-page">
+<header class="admin-topbar">
+  <a class="admin-brand" href="/"><img src="/static/assets/brand/minimal-cat.png" alt=""><span><b>股析</b>后台用户管理</span></a>
+  <div class="admin-actions"><span id="currentUser">正在验证身份…</span><a class="secondary-button" href="/">返回业务页</a><button class="text-button" id="logoutButton" type="button">退出登录</button></div>
+</header>
+<main class="admin-main">
+  <section class="admin-intro"><div><span class="eyebrow">ADMINISTRATION</span><h1>管理访问，<br><em>保持边界清楚。</em></h1></div><p>创建账号、调整角色与状态。密码重置、禁用和删除会即时清理相关会话。</p></section>
+  <div class="admin-grid">
+    <section class="panel"><h2>新建用户</h2><p class="panel-note" id="passwordPolicy">正在读取密码规则…</p>
+      <form class="admin-form" id="createUserForm">
+        <label>用户名<input name="username" autocomplete="off" maxlength="32" required placeholder="3～32 位"></label>
+        <label>初始密码<input name="password" type="password" autocomplete="new-password" maxlength="128" required></label>
+        <label>角色<select name="role"><option value="user">普通用户</option><option value="admin">管理员</option></select></label>
+        <button class="primary-button" type="submit">创建用户</button>
+      </form>
+    </section>
+    <section class="panel"><h2>用户列表</h2><p class="panel-note">禁用或重置密码后，该用户的现有会话会立即失效。</p>
+      <div class="table-wrap"><table class="user-table"><thead><tr><th>用户</th><th>角色</th><th>状态</th><th>创建时间</th><th>最后登录</th><th>操作</th></tr></thead><tbody class="stagger-in" id="userRows" data-auto-animate><tr><td class="empty-state" colspan="6">正在读取…</td></tr></tbody></table></div>
+    </section>
+  </div>
+</main>
+<dialog class="app-dialog" id="resetDialog"><form class="reset-form" id="resetForm" method="dialog"><span class="eyebrow">重置密码</span><h2 id="resetTitle">重置用户密码</h2><p>提交后该用户现有会话会全部失效。</p><label>新密码<input id="resetPassword" type="password" autocomplete="new-password" maxlength="128" required></label><div class="dialog-actions"><button class="secondary-button" value="cancel">取消</button><button class="primary-button" id="resetSubmit" value="default">确认重置</button></div></form></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="https://unpkg.com/@formkit/auto-animate@1.0.0-beta.6/index.min.js" integrity="sha384-l9LHGZJ2OhRkiLm2L2YwaVW+t9jIgTzmkHingIAya15C+jNEpmSwWiJklGwb/Ma5" crossorigin="anonymous"></script>
+<script src="/static/js/motion.js?v=1.2.1"></script>
+<script src="/static/js/admin.js?v=1.2.1"></script>
+</body>
+</html>

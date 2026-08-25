@@ -1,0 +1,28 @@
+# Binance Futures 交易配置。默认 Testnet、默认关闭自动交易。
+symbols: [BTCUSDT, ETHUSDT]
+market_type: linear
+kline_interval: "5"
+kline_limit: 240
+default_leverage: 3
+max_leverage: 5
+max_position_pct: 0.10
+max_total_position_pct: 0.25
+max_daily_loss_pct: 0.05
+max_consecutive_losses: 3
+hard_stop_loss_pct: 0.02
+take_profit_pct: 0.04
+max_holding_minutes: 1440
+order_cooldown_sec: 300
+strategy: ma_cross
+ma_fast: 9
+ma_slow: 21
+rsi_period: 14
+rsi_buy: 35
+rsi_sell: 65
+boll_window: 20
+boll_std: 2.0
+enable_auto_trade: false
+allow_mainnet: false
+notify_enabled: false
+webhook_url: ""
+maintenance_windows: []

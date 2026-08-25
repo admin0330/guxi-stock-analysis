@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="view-transition" content="same-origin">
+<meta name="theme-color" content="#f9f6f1">
+<title>股析 · A股分析系统</title>
+<link rel="icon" type="image/png" href="/static/assets/brand/minimal-cat.png?v=20260821-cat1">
+<link rel="apple-touch-icon" href="/static/assets/brand/minimal-cat.png?v=20260821-cat1">
+<link rel="stylesheet" href="/static/css/claude.css?v=1.0.2">
+<link rel="stylesheet" href="/static/css/global-motion.css?v=1.2.1">
+</head>
+<body>
+<!-- ══════════════ 顶栏 ══════════════ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-label="股析标志">
+      <img src="/static/assets/brand/minimal-cat.png?v=20260821-cat1" alt="" width="44" height="44">
+    </div>
+    <div class="brand-text">
+      <h1>股析 <span class="brand-en">本地市场分析</span></h1>
+      <p>中国A股市场分析系统 · 数据仅供参考，不构成投资建议</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="search-menu" id="searchMenu">
+      <button class="icon-button search-toggle" id="globalSearchToggle" type="button" aria-label="搜索股票" aria-expanded="false" aria-controls="globalSearchPanel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      </button>
+      <div class="global-search" id="globalSearchPanel" role="search">
+        <input id="globalSearch" type="search" placeholder="搜索股票代码或名称  /" autocomplete="off" aria-label="全局股票搜索">
+        <div class="global-suggest stagger-in" id="globalSuggest" data-auto-animate></div>
+      </div>
+    </div>
+    <div class="market-status" id="marketSession"><i></i><span>判断交易状态…</span></div>
+    <div class="clock" id="clock">
+      <div class="clock-time">--:--:--</div>
+      <div class="clock-date" id="clockDate">----/--/--</div>
+    </div>
+    <div class="account-menu">
+      <span id="accountName">正在验证…</span>
+      <a class="account-admin" id="accountAdmin" href="/admin" hidden>用户管理</a>
+      <button class="account-logout" id="logoutBtn" type="button">退出</button>
+    </div>
+    <button class="icon-button" id="aboutBtn" type="button" title="关于股析" aria-label="关于股析">?</button>
+  </div>
+</header>
+
+<!-- ══════════════ 导航 ══════════════ -->
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="overview"><span class="tab-idx">01</span>市场总览</button>
+  <button class="tab" data-tab="picks"><span class="tab-idx">02</span>每日推荐</button>
+  <button class="tab" data-tab="limitup"><span class="tab-idx">03</span>涨停复盘</button>
+  <button class="tab" data-tab="stock"><span class="tab-idx">04</span>个股透视</button>
+  <button class="tab" data-tab="daily"><span class="tab-idx">05</span>小白日报</button>
+  <div class="tab-underline"></div>
+</nav>
+
+<div class="loading-dock" id="loadingDock" aria-live="polite" aria-atomic="true">
+  <i class="loading-spinner" aria-hidden="true"></i>
+  <span class="loading-label" id="loadingLabel">正在同步市场数据</span>
+  <b class="loading-count" id="loadingCount">0%</b>
+</div>
+
+<main class="content">
+
+  <!-- ══════════════ 01 市场总览 ══════════════ -->
+  <section class="view active stagger-in" id="view-overview">
+    <div class="section-intro">
+      <div>
+        <span class="eyebrow">01 / 市场脉搏</span>
+        <h1>看清市场，<em class="hero-next">再决定下一步。</em></h1>
+      </div>
+      <p>用市场温度、宽度与量能，建立今天的判断基线。</p>
+    </div>
+    <div class="hero-grid">
+      <div class="card temp-card" id="tempCard">
+        <div class="card-head">
+          <h2>市场温度</h2>
+          <span class="badge" id="tempBadge">--</span>
+        </div>
+        <div class="temp-gauge" id="tempGauge">
+          <svg viewBox="0 0 200 120" class="gauge-svg">
+            <path class="gauge-track" d="M 20 100 A 80 80 0 0 1 180 100" fill="none"/>
+            <path class="gauge-arc" id="gaugeArc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none"/>
+          </svg>
+          <div class="temp-reading">
+            <div class="temp-value"><span id="tempValue">--</span><small>分</small></div>
+            <div class="temp-tone" id="tempTone">--</div>
+          </div>
+        </div>
+        <div class="temp-scale">
+          <span class="scale-cold">冰点</span><span class="scale-mid">均衡</span><span class="scale-hot">火热</span>
+        </div>
+      </div>
+
+      <div class="card breadth-card" id="breadthCard">
+        <div class="card-head"><h2>涨跌分布</h2><span class="muted" id="breadthTotal">--</span></div>
+        <div class="breadth-bars">
+          <div class="bbar up"><div class="bbar-label"><span>上涨</span><b id="bUp">--</b></div><div class="bbar-track"><div class="bbar-fill up" id="bUpFill"></div></div></div>
+          <div class="bbar down"><div class="bbar-label"><span>下跌</span><b id="bDown">--</b></div><div class="bbar-track"><div class="bbar-fill down" id="bDownFill"></div></div></div>
+          <div class="bbar flat"><div class="bbar-label"><span>平盘</span><b id="bFlat">--</b></div><div class="bbar-track"><div class="bbar-fill flat" id="bFlatFill"></div></div></div>
+          <div class="bbar limit"><div class="bbar-label"><span>涨停/跌停</span><b id="bLimit">--</b></div><div class="bbar-track"><div class="bbar-fill limit" id="bLimitFill"></div></div></div>
+        </div>
+        <div class="vol-line">
+          <span>两市成交</span><b class="mono" id="volAmount">--</b><span class="muted">亿元</span>
+          <span class="vol-tag" id="volTag">--</span>
+        </div>
+      </div>
+
+      <div class="card summary-card" id="summaryCard">
+        <div class="card-head"><h2>今日速览</h2><span class="muted" id="overviewTime">--</span></div>
+        <p class="summary-text" id="overviewSummary">加载中…</p>
+        <div class="hsgt-note" id="hsgtNote" hidden></div>
+      </div>
+    </div>
+
+    <div class="card indices-card">
+      <div class="card-head"><h2>主要指数</h2><div class="idx-legend"><span class="dot up"></span>红涨 <span class="dot down"></span>绿跌</div></div>
+      <div class="indices-grid stagger-in" id="indicesGrid" data-auto-animate><!-- JS 渲染 --></div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <h2>指数走势</h2>
+        <div class="chart-switch" id="indexSwitch">
+          <button class="chip active" data-sym="sh000001">上证指数</button>
+          <button class="chip" data-sym="sz399001">深证成指</button>
+          <button class="chip" data-sym="sz399006">创业板指</button>
+          <button class="chip" data-sym="sh000688">科创50</button>
+          <button class="chip" data-sym="sh000300">沪深300</button>
+        </div>
+      </div>
+      <div class="chart-box" id="indexChart"></div>
+      <div class="chart-tags" id="indexTechTags"><!-- JS --></div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 02 个股透视 ══════════════ -->
+  <section class="view stagger-in" id="view-stock">
+    <div class="section-intro compact">
+      <div>
+        <span class="eyebrow">04 / 个股透视</span>
+        <h1>把一家公司，<em>拆成可读的信号。</em></h1>
+      </div>
+      <p>技术、基本面与资金面，三种视角交叉验证。</p>
+    </div>
+    <div class="search-row">
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input stock-search-input" type="text" id="stockSearch" placeholder="输入股票代码或名称，如 600519 / 贵州茅台 / 宁德时代" autocomplete="off">
+        <button class="stock-search-button" type="button" id="stockSearchBtn">分析</button>
+      </div>
+      <div class="search-suggest" id="searchSuggest"></div>
+    </div>
+
+    <div class="card watchlist-card">
+      <div class="card-head"><h2>我的自选</h2><span class="muted">本地保存 · 最多 100 只</span></div>
+      <div class="watchlist stagger-in" id="watchlist" data-auto-animate><span class="muted">正在读取自选股…</span></div>
+    </div>
+
+    <div class="stock-placeholder" id="stockPlaceholder">
+      <div class="ph-mark">♢</div>
+      <p>输入代码或名称，查看个股综合诊断报告</p>
+    </div>
+
+    <div class="stock-report" id="stockReport" hidden>
+      <div class="stock-hero">
+        <div class="stock-ident">
+          <h2 id="sName">--</h2>
+          <span class="mono muted" id="sCode">--</span>
+          <span class="stock-label" id="sLabel">--</span>
+        </div>
+        <div class="stock-score">
+          <div class="score-ring" id="scoreRing" style="--p:0">
+            <div class="score-inner"><b id="sScore">--</b><small>/100</small></div>
+          </div>
+          <div class="score-sub"><span id="sConfidence">--</span></div>
+        </div>
+        <div class="stock-hero-actions">
+          <button class="secondary-button" id="watchCurrentBtn" type="button">加入自选</button>
+          <button class="secondary-button" id="copyStockBtn" type="button">复制摘要</button>
+        </div>
+      </div>
+
+      <div class="score-breakdown">
+        <div class="sdim"><span class="sdim-name">技术面</span><div class="sdim-track"><i id="sdTech"></i></div><b id="sdTechV" class="mono">--</b><em>/40</em></div>
+        <div class="sdim"><span class="sdim-name">基本面</span><div class="sdim-track"><i id="sdFund"></i></div><b id="sdFundV" class="mono">--</b><em>/35</em></div>
+        <div class="sdim"><span class="sdim-name">资金面</span><div class="sdim-track"><i id="sdMoney"></i></div><b id="sdMoneyV" class="mono">--</b><em>/25</em></div>
+      </div>
+
+      <p class="stock-summary" id="sSummary">--</p>
+
+      <div class="stock-cols">
+        <div class="card stock-module" id="stockTechnicalCard">
+          <div class="card-head"><h2>技术面信号</h2><span class="badge neutral" id="sTrend">--</span></div>
+          <div class="metric-grid stagger-in" id="sTechMetrics" data-auto-animate><!-- JS --></div>
+        </div>
+        <div class="card stock-module" id="stockFundamentalCard">
+          <div class="card-head"><h2>基本面数据</h2><span class="badge neutral" id="sReportPeriod">--</span></div>
+          <div class="metric-grid stagger-in" id="sFundMetrics" data-auto-animate><!-- JS --></div>
+        </div>
+        <div class="card stock-module" id="stockMoneyCard">
+          <div class="card-head"><h2>资金动向</h2><span class="badge neutral" id="sFundTag">--</span></div>
+          <div class="metric-grid stagger-in" id="sMoneyMetrics" data-auto-animate><!-- JS --></div>
+        </div>
+      </div>
+
+      <div class="card chart-card stock-module" id="stockChartCard">
+        <div class="card-head"><h2>K线走势 <small class="muted">（前复权 · 近120日）</small></h2></div>
+        <div class="chart-box tall" id="stockChart"></div>
+      </div>
+
+      <div class="stock-lists">
+        <div class="card pos-card">
+          <div class="card-head"><h2>✓ 亮点</h2></div>
+          <ul class="pros" id="sPros"></ul>
+        </div>
+        <div class="card neg-card">
+          <div class="card-head"><h2>✕ 风险</h2></div>
+          <ul class="cons" id="sCons"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 03 涨停复盘 ══════════════ -->
+  <section class="view stagger-in" id="view-limitup">
+    <div class="section-intro compact">
+      <div>
+        <span class="eyebrow">03 / 情绪结构</span>
+        <h1>情绪不是结论，<em>结构才是线索。</em></h1>
+      </div>
+      <p>从连板梯队、炸板率与行业聚集度，读懂市场风险偏好。</p>
+    </div>
+    <div class="view-toolbar">
+      <span class="muted">复盘日期</span>
+      <button class="chip active" data-limit-date="today">今天</button>
+      <button class="chip" data-limit-date="yesterday">昨天</button>
+      <input class="date-input" id="limitDate" type="date" aria-label="选择复盘日期">
+    </div>
+    <div class="ladder-hero">
+      <div class="card senti-card" id="limitSentimentCard">
+        <div class="card-head"><h2>情绪温度</h2><span class="badge" id="ltPhase">--</span></div>
+        <div class="senti-value"><b id="ltTemp">--</b><small>/100</small></div>
+        <div class="senti-stage" id="ltStageText">--</div>
+        <div class="senti-track"><i id="ltTempFill"></i></div>
+      </div>
+      <div class="ladder-chart card" id="limitLadderCard">
+        <div class="card-head"><h2>连板梯队</h2><span class="muted">最高 <b id="ltMaxStreak" class="mono gold">--</b> 板</span></div>
+        <div class="chart-box short" id="ladderChart"></div>
+      </div>
+      <div class="stat-grid" id="limitStats">
+        <div class="stat"><span>涨停家数</span><b class="mono up" id="ltUpCount">--</b></div>
+        <div class="stat"><span>炸板家数</span><b class="mono down" id="ltZbCount">--</b></div>
+        <div class="stat"><span>炸板率</span><b class="mono" id="ltZbRate">--</b></div>
+        <div class="stat"><span>晋级率</span><b class="mono" id="ltPromo">--</b></div>
+        <div class="stat"><span>一字/秒板</span><b class="mono gold" id="ltEarly">--</b></div>
+        <div class="stat"><span>涨停行业</span><b class="mono" id="ltTopInd">--</b></div>
+      </div>
+    </div>
+
+    <div class="ladder-bottom">
+      <div class="card ind-dist-card" id="limitIndustryCard">
+        <div class="card-head"><h2>涨停行业分布</h2></div>
+        <div class="chart-box short" id="indChart"></div>
+      </div>
+      <div class="card leader-card" id="limitLeadersCard">
+        <div class="card-head"><h2>龙头榜单</h2><span class="muted" id="ltDate">--</span></div>
+        <table class="data-table" id="ltTable">
+          <thead><tr><th>#</th><th>代码</th><th>名称</th><th>连板</th><th>涨跌幅</th><th>封单(亿)</th><th>行业</th><th>首次封板</th></tr></thead>
+          <tbody class="stagger-in" data-auto-animate></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card conclusion-card" id="limitConclusionCard">
+      <div class="card-head"><h2>复盘结论</h2></div>
+      <p id="ltConclusion">--</p>
+    </div>
+  </section>
+
+  <!-- ══════════════ 04 每日推荐 ══════════════ -->
+  <section class="view stagger-in" id="view-picks">
+    <div class="pick-disclaimer" role="note">仅供学习研究，不构成投资建议；不保证收益，过往与回测不代表未来。股市有风险，决策自负。</div>
+    <div class="section-intro compact picks-intro">
+      <div>
+        <span class="eyebrow">02 / 每日关注池</span>
+        <h1>用透明规则，<em>缩小观察范围。</em></h1>
+      </div>
+      <p>从活跃股票中排除明显风险项，再按趋势、动量、流动性与波动进行可解释评分。</p>
+    </div>
+    <div class="view-toolbar">
+      <label for="pickHistory">历史记录</label>
+      <select id="pickHistory" class="select-input"><option value="">最近交易日</option></select>
+      <button class="secondary-button" id="pickRulesBtn" type="button">推荐规则说明</button>
+      <span class="muted" id="pickGeneratedAt">等待生成</span>
+    </div>
+    <div class="pick-status card" id="pickStatusCard">
+      <div><span class="eyebrow">DAILY SCORE</span><h2 id="pickDate">--</h2></div>
+      <div><b id="pickStrategy">daily_score_v1</b><span id="pickNotice">公开行情 · 规则评分</span></div>
+    </div>
+    <div class="pick-list stagger-in" id="pickList" aria-live="polite" data-auto-animate>
+      <article class="card pick-card module-loading"><div class="pick-skeleton skeleton"></div></article>
+      <article class="card pick-card module-loading"><div class="pick-skeleton skeleton"></div></article>
+      <article class="card pick-card module-loading"><div class="pick-skeleton skeleton"></div></article>
+    </div>
+    <p class="disclaimer picks-bottom-note">“每日推荐”仅表示规则筛选出的学习关注池，不等于买入建议，也不代表未来表现。</p>
+  </section>
+
+  <!-- ══════════════ 05 小白日报 ══════════════ -->
+  <section class="view stagger-in" id="view-daily">
+    <div class="section-intro compact">
+      <div>
+        <span class="eyebrow">05 / 每日简报</span>
+        <h1>用一句话，<em>理解今天的市场。</em></h1>
+      </div>
+      <p>把复杂行情翻译成更容易行动的观察与提醒。</p>
+    </div>
+    <div class="view-toolbar">
+      <label for="dailyHistory">日报历史</label>
+      <select id="dailyHistory" class="select-input"><option value="">今天</option></select>
+      <button class="secondary-button" id="archiveDailyBtn" type="button">保存今日快照</button>
+    </div>
+    <div class="daily-head card" id="dailyHeadCard">
+      <div class="daily-date">
+        <h2>今日行情日报</h2>
+        <span class="mono muted" id="dDate">--</span>
+      </div>
+      <p class="daily-market-line" id="dMarketLine">--</p>
+    </div>
+
+    <div class="daily-grid">
+      <div class="card dnote-card" id="dailyLimitCard">
+        <div class="card-head"><h2>涨停速览</h2></div>
+        <p id="dZtNote">--</p>
+      </div>
+      <div class="card dnote-card" id="dailyHsgtCard">
+        <div class="card-head"><h2>北向资金</h2></div>
+        <p id="dHsgt">--</p>
+      </div>
+      <div class="card dnote-card" id="dailyTempCard">
+        <div class="card-head"><h2>市场温度</h2></div>
+        <p id="dTempNote">--</p>
+      </div>
+    </div>
+
+    <div class="daily-lists">
+      <div class="card list-card" id="dailyGainersCard">
+        <div class="card-head"><h2>涨幅榜前 10</h2><span class="muted">今日领涨</span></div>
+        <table class="data-table" id="dGainers"><thead><tr><th>#</th><th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th><th>成交额(亿)</th></tr></thead><tbody class="stagger-in" data-auto-animate></tbody></table>
+      </div>
+      <div class="card list-card" id="dailyLosersCard">
+        <div class="card-head"><h2>跌幅榜前 10</h2><span class="muted">今日领跌</span></div>
+        <table class="data-table" id="dLosers"><thead><tr><th>#</th><th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th><th>成交额(亿)</th></tr></thead><tbody class="stagger-in" data-auto-animate></tbody></table>
+      </div>
+    </div>
+
+    <div class="card boards-card" id="dailyBoardsCard">
+      <div class="card-head"><h2>热门板块</h2><span class="muted">东方财富行业</span></div>
+      <div class="boards stagger-in" id="dBoards" data-auto-animate><!-- JS --></div>
+    </div>
+
+    <div class="card conclusion-card" id="dailyConclusionCard">
+      <div class="card-head"><h2>结论与建议</h2><span class="badge warn">风险提示</span></div>
+      <p id="dConclusion">--</p>
+      <p class="disclaimer">本报告由程序自动生成，基于公开行情数据，仅供学习参考，不构成任何投资建议。股市有风险，入市需谨慎。</p>
+    </div>
+  </section>
+
+  <!-- ══════════════ 06 加密货币 ══════════════ -->
+  <section class="view stagger-in" id="view-crypto">
+    <div class="section-intro compact">
+      <div>
+        <span class="eyebrow">06 / 数字资产</span>
+        <h1>观察波动，<em>保持判断克制。</em></h1>
+      </div>
+      <p>聚焦 BTC 与 ETH，用多个周期和常用技术指标理解趋势。</p>
+    </div>
+
+    <div class="crypto-subnav" role="tablist" aria-label="数字资产功能">
+      <button class="chip active" id="cryptoDashboardTab" type="button" role="tab" aria-selected="true">行情看板</button>
+      <button class="chip" id="tradingDeskTab" type="button" role="tab" aria-selected="false">Binance 模拟盘</button>
+    </div>
+
+    <div class="crypto-panel active" id="cryptoDashboardPanel">
+
+    <div class="crypto-toolbar">
+      <div class="asset-switch" id="cryptoAssetSwitch" aria-label="选择加密资产">
+        <button class="asset-button active" data-asset="BTC"><b>BTC</b><span>比特币</span></button>
+        <button class="asset-button" data-asset="ETH"><b>ETH</b><span>以太坊</span></button>
+      </div>
+      <div class="crypto-actions">
+        <span class="crypto-stream-status connecting" id="cryptoStreamStatus" role="status" aria-live="polite"><i aria-hidden="true"></i><span>实时连接中</span></span>
+        <button class="stream-retry" id="cryptoStreamRetry" type="button" hidden>重试连接</button>
+        <div class="refresh-frequency" id="cryptoFrequency" aria-label="自动刷新频率">
+          <button class="chip" data-seconds="1">1秒</button>
+          <button class="chip active" data-seconds="60">1分</button>
+          <button class="chip" data-seconds="300">5分</button>
+          <button class="chip" data-seconds="1200">20分</button>
+        </div>
+        <span class="crypto-auto" id="cryptoAutoLabel">指标每 1 分钟刷新</span>
+        <span class="crypto-auto" id="cryptoNextRefresh">--</span>
+        <button class="secondary-button" id="cryptoAutoBtn" type="button">暂停指标刷新</button>
+        <button class="refresh-btn" id="cryptoRefreshBtn" type="button">立即刷新</button>
+      </div>
+    </div>
+
+    <div class="crypto-market-grid">
+      <div class="crypto-stat primary-stat">
+        <span>最新价格</span>
+        <b class="mono" id="cPrice">--</b>
+        <small id="cAssetName">BTC / USDT</small>
+      </div>
+      <div class="crypto-stat">
+        <span>24h 涨跌</span>
+        <b class="mono" id="cChange">--</b>
+        <small id="cRange">高 -- · 低 --</small>
+      </div>
+      <div class="crypto-stat">
+        <span>24h 成交额</span>
+        <b class="mono" id="cVolume">--</b>
+        <small>USDT 计价</small>
+      </div>
+      <div class="crypto-stat">
+        <span>流通市值</span>
+        <b class="mono" id="cMarketCap">--</b>
+        <small id="cSource">数据源 --</small>
+      </div>
+    </div>
+
+    <div class="card chart-card crypto-chart-card" id="cryptoChartCard">
+      <div class="card-head">
+        <div><h2><span id="cChartAsset">BTC</span> / USDT</h2><span class="crypto-updated" id="cUpdated">等待行情</span></div>
+        <div class="chart-switch" id="cryptoIntervalSwitch" aria-label="选择K线周期">
+          <button class="chip" data-interval="1m">1m</button>
+          <button class="chip" data-interval="5m">5m</button>
+          <button class="chip" data-interval="15m">15m</button>
+          <button class="chip active" data-interval="1h">1h</button>
+          <button class="chip" data-interval="4h">4h</button>
+          <button class="chip" data-interval="1d">1d</button>
+        </div>
+      </div>
+      <div class="chart-box tall" id="cryptoChart"></div>
+    </div>
+
+    <div class="crypto-analysis-grid">
+      <div class="crypto-score-panel">
+        <span class="eyebrow">技术评分</span>
+        <div class="crypto-score-line"><b id="cScore">--</b><small>/100</small></div>
+        <span class="badge neutral" id="cLabel">加载中…</span>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>均线结构</h2><span class="badge neutral">MA</span></div>
+        <div class="metric-grid stagger-in" id="cMaMetrics" data-auto-animate></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>动量指标</h2><span class="badge neutral">MACD / RSI</span></div>
+        <div class="metric-grid stagger-in" id="cMomentumMetrics" data-auto-animate></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>波动区间</h2><span class="badge neutral">BOLL</span></div>
+        <div class="metric-grid stagger-in" id="cBollMetrics" data-auto-animate></div>
+      </div>
+    </div>
+
+    <div class="card conclusion-card crypto-reading">
+      <div class="card-head"><h2>技术面解读</h2><span class="muted" id="cAnalysisSource">--</span></div>
+      <p id="cInterpretation">正在加载技术指标…</p>
+      <p class="disclaimer">加密资产价格波动剧烈；行情来自第三方公开接口，可能存在网络延迟或短时中断。本页只呈现公开行情与技术指标，不构成任何投资建议。</p>
+    </div>
+    </div>
+
+    <div class="crypto-panel" id="tradingPanel" hidden>
+      <div class="trade-banner" id="tradeBanner">
+        <div><span class="eyebrow">BINANCE · USDⓈ-M FUTURES</span><h2 id="tradeEnvironment">正在读取交易环境</h2></div>
+        <div class="trade-statuses"><span class="status-pill" id="tradeApiStatus"><i></i>API --</span><span class="status-pill" id="tradeWsStatus"><i></i>WS --</span><button class="secondary-button" id="tradeUnlockBtn" type="button" hidden>解锁主网</button></div>
+      </div>
+
+      <div class="card trade-setup" id="tradeSetup" hidden>
+        <div class="card-head"><h2>连接 Binance Futures Testnet</h2><span class="badge warn">未配置密钥</span></div>
+        <p>请在程序同目录的 <code>.env</code> 填写 <code>BINANCE_API_KEY</code> 与 <code>BINANCE_API_SECRET</code>，重启后即可读取模拟账户与下单。密钥不会显示在网页或日志中。</p>
+      </div>
+
+      <div class="trade-summary-grid">
+        <div class="crypto-stat"><span>账户权益</span><b class="mono" id="tradeEquity">--</b><small id="tradeEquityAsset">USDT</small></div>
+        <div class="crypto-stat"><span>可用余额</span><b class="mono" id="tradeAvailable">--</b><small id="tradeAvailableAsset">USDT</small></div>
+        <div class="crypto-stat"><span>未实现盈亏</span><b class="mono" id="tradeUnrealised">--</b><small id="tradeUnrealisedAsset">USDT</small></div>
+        <div class="crypto-stat"><span>BTC 实时价</span><b class="mono" id="tradeBtcPrice">--</b><small>Binance WS · USDT</small></div>
+        <div class="crypto-stat"><span>ETH 实时价</span><b class="mono" id="tradeEthPrice">--</b><small>Binance WS · USDT</small></div>
+        <div class="crypto-stat"><span>策略状态</span><b id="tradeStrategy">--</b><small id="tradeSignal">等待信号</small></div>
+      </div>
+
+      <div class="trade-layout">
+        <section class="card trade-order-card">
+          <div class="card-head"><h2>手动委托</h2><span class="badge neutral" id="tradeOrderEnv">Testnet</span></div>
+          <form id="tradeOrderForm" class="trade-form">
+            <label>交易对<select class="select-input" id="tradeSymbol"><option>BTCUSDT</option><option>ETHUSDT</option></select></label>
+            <label>方向<select class="select-input" id="tradeSide"><option value="Buy">买入 / 做多</option><option value="Sell">卖出 / 做空</option></select></label>
+            <label>订单类型<select class="select-input" id="tradeOrderType"><option value="Market">市价</option><option value="Limit">限价</option></select></label>
+            <label>数量<input class="select-input" id="tradeQty" type="number" min="0" step="0.001" placeholder="0.001" required></label>
+            <label id="tradePriceLabel" hidden>限价<input class="select-input" id="tradePrice" type="number" min="0" step="0.01" placeholder="价格"></label>
+            <label>止损（可选）<input class="select-input" id="tradeStopLoss" type="number" min="0" step="0.01" placeholder="自动按风控计算"></label>
+            <label>止盈（可选）<input class="select-input" id="tradeTakeProfit" type="number" min="0" step="0.01" placeholder="自动按风控计算"></label>
+            <button class="refresh-btn trade-submit" type="submit">检查并提交</button>
+          </form>
+        </section>
+
+        <section class="card trade-control-card">
+          <div class="card-head"><h2>策略与风控</h2><span class="badge neutral" id="tradeRiskState">读取中</span></div>
+          <div class="trade-control-row"><div><b>自动交易</b><p>仅在已连接账户且风控正常时可开启</p></div><button class="secondary-button" id="tradeAutoBtn" type="button">已关闭</button></div>
+          <dl class="trade-risk-list" id="tradeRiskList"><div><dt>单笔仓位上限</dt><dd>--</dd></div><div><dt>日亏损熔断</dt><dd>--</dd></div><div><dt>最大杠杆</dt><dd>--</dd></div></dl>
+          <details class="trade-settings"><summary>调整策略与风控参数</summary><form id="tradeSettingsForm" class="trade-settings-form">
+            <label>策略<select class="select-input" id="tradeSettingStrategy"><option value="ma_cross">双均线交叉</option><option value="rsi_basic">RSI 趋势</option><option value="boll_break">布林带突破</option></select></label>
+            <label>默认杠杆<input class="select-input" id="tradeSettingLeverage" type="number" min="1" max="20"></label>
+            <label>单笔仓位 %<input class="select-input" id="tradeSettingPosition" type="number" min="1" max="25" step="1"></label>
+            <label>总仓位上限 %<input class="select-input" id="tradeSettingTotalPosition" type="number" min="1" max="75" step="1"></label>
+            <label>日亏损熔断 %<input class="select-input" id="tradeSettingDailyLoss" type="number" min="1" max="25" step="1"></label>
+            <label>连续亏损熔断<input class="select-input" id="tradeSettingLosses" type="number" min="1" max="20"></label>
+            <label>硬止损 %<input class="select-input" id="tradeSettingStopLoss" type="number" min="0.1" max="20" step="0.1"></label>
+            <label>止盈 %<input class="select-input" id="tradeSettingTakeProfit" type="number" min="0.1" max="50" step="0.1"></label>
+            <label>MA 快线<input class="select-input" id="tradeSettingMaFast" type="number" min="2" max="200"></label>
+            <label>MA 慢线<input class="select-input" id="tradeSettingMaSlow" type="number" min="3" max="500"></label>
+            <label>RSI 买入阈值<input class="select-input" id="tradeSettingRsiBuy" type="number" min="1" max="49"></label>
+            <label>RSI 卖出阈值<input class="select-input" id="tradeSettingRsiSell" type="number" min="51" max="99"></label>
+            <label>BOLL 周期<input class="select-input" id="tradeSettingBollWindow" type="number" min="5" max="200"></label>
+            <label>BOLL 标准差<input class="select-input" id="tradeSettingBollStd" type="number" min="0.5" max="5" step="0.1"></label>
+            <button class="secondary-button" type="submit">保存并热更新</button>
+          </form></details>
+          <button class="danger-button" id="tradeEmergencyBtn" type="button">紧急停止并撤销挂单</button>
+          <button class="danger-button ghost" id="tradeEmergencyCloseBtn" type="button">紧急停止并全部平仓</button>
+        </section>
+      </div>
+
+      <section class="card trade-table-card"><div class="card-head"><h2>当前仓位</h2><span class="muted" id="tradePositionsTime">独立加载</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>开仓价</th><th>标记价</th><th>未实现盈亏</th><th></th></tr></thead><tbody class="stagger-in" id="tradePositionsBody" data-auto-animate><tr><td colspan="7">正在读取…</td></tr></tbody></table></div></section>
+      <section class="card trade-table-card"><div class="card-head"><h2>挂单与今日成交</h2><button class="stream-retry" id="tradeRefreshBtn" type="button">刷新</button></div><div class="trade-table-tabs"><button class="chip active" data-trade-table="orders">当前挂单</button><button class="chip" data-trade-table="trades">今日成交</button></div><div class="table-scroll"><table class="data-table"><thead id="tradeHistoryHead"></thead><tbody class="stagger-in" id="tradeHistoryBody" data-auto-animate><tr><td>正在读取…</td></tr></tbody></table></div></section>
+      <section class="card trade-log-card"><div class="card-head"><h2>运行记录</h2><span class="muted">本地审计日志</span></div><div class="trade-logs stagger-in" id="tradeLogs" data-auto-animate><p class="muted">正在读取…</p></div></section>
+      <p class="disclaimer">加密货币与杠杆风险极高，自动交易与手动委托都可能导致本金全部亏损。本系统仅供学习研究，不构成投资建议。系统默认 Testnet 且默认关闭自动交易；主网必须在本机配置中显式开启，并在每次会话中再次解锁。</p>
+    </div>
+  </section>
+
+</main>
+
+<button class="market-fab" id="marketFab" type="button" aria-label="切换到币圈看板">
+  <span class="market-fab-symbol" aria-hidden="true">
+    <svg class="bitcoin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.77 19.09c4.92.87 6.14-6.03 1.21-6.9m-1.21 6.9-5.91-1.04m7.12-5.86c4.93.87 6.14-6.02 1.22-6.89m-1.22 6.89-3.94-.69m5.16-6.2L8.29 4.26m5.91 1.04.35-1.97M7.48 20.36 10.61 2.64"/></svg>
+    <span class="ashare-symbol">A</span>
+  </span>
+  <span class="market-fab-label" id="marketFabLabel">币圈</span>
+</button>
+
+<aside class="trade-safety-dock" id="tradeSafetyDock" aria-label="交易安全快捷操作" hidden>
+  <span><i></i><b>交易安全</b></span>
+  <button class="secondary-button" id="tradeAutoDockBtn" type="button">自动交易已关闭</button>
+  <button class="danger-button" id="tradeEmergencyDockBtn" type="button">紧急停止</button>
+</aside>
+
+<footer class="footer">
+  <div>
+    <strong>股析 · 本地市场分析 · v1.0.0</strong>
+    <span>数据源：腾讯证券 / 东方财富 / 新浪财经 / stock-open-api / Binance / OKX / CoinGecko</span>
+  </div>
+  <p class="footer-disclaimer">仅供学习参考，不构成投资建议。市场有风险，决策需谨慎。</p>
+  <span class="mono" id="footerTime"></span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<dialog class="app-dialog trade-confirm-dialog" id="tradeConfirmDialog">
+  <form method="dialog" id="tradeConfirmForm">
+    <span class="eyebrow">交易确认</span><h2 id="tradeConfirmTitle">确认操作</h2>
+    <p id="tradeConfirmText"></p>
+    <label id="tradePhraseWrap" hidden>输入确认短语<input class="select-input" id="tradeConfirmPhrase" autocomplete="off"></label>
+    <div class="dialog-actions"><button class="secondary-button" value="cancel">取消</button><button class="danger-button" id="tradeConfirmSubmit" value="confirm">确认执行</button></div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog" id="welcomeDialog">
+  <form method="dialog">
+    <span class="eyebrow">欢迎使用股析</span>
+    <h2>先看数据，再做判断。</h2>
+    <p>股析会把市场与个股模块分开加载，先到的数据会立即显示。自选、最近搜索与设置按当前登录账号隔离保存。</p>
+    <p class="disclaimer">本系统仅供学习与信息参考，不构成任何投资建议。</p>
+    <button class="refresh-btn" id="welcomeDone" value="ok">开始使用</button>
+  </form>
+</dialog>
+
+<dialog class="app-dialog" id="aboutDialog">
+  <form method="dialog">
+    <div class="dialog-head"><div><span class="eyebrow">关于</span><h2>关于股析</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+    <dl class="about-list">
+      <div><dt>版本</dt><dd>v1.0.0</dd></div>
+      <div><dt>服务状态</dt><dd id="healthStatus">正在检查…</dd></div>
+      <div><dt>数据源</dt><dd>腾讯证券、东方财富、新浪财经、stock-open-api、Binance、OKX、CoinGecko</dd></div>
+      <div><dt>隐私</dt><dd>自选股、搜索记录与设置按登录账号隔离；交易所密钥仅保存在服务端。</dd></div>
+    </dl>
+    <p class="disclaimer">行情可能延迟、缺失或因上游接口变化而暂不可用。所有内容仅供学习参考，不构成投资建议。</p>
+  </form>
+</dialog>
+
+<dialog class="app-dialog pick-rules-dialog" id="pickRulesDialog">
+  <form method="dialog">
+    <div class="dialog-head"><div><span class="eyebrow">策略透明度</span><h2>每日关注池规则</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+    <div id="pickRulesContent"><p class="muted">正在读取规则…</p></div>
+    <p class="disclaimer">仅供学习研究，不构成投资建议，不保证收益；过往与回测不代表未来。</p>
+  </form>
+</dialog>
+
+<script src="/static/js/vendor/echarts.min.js?v=5.5.1"></script>
+<script type="module" src="https://unpkg.com/@formkit/auto-animate@1.0.0-beta.6/index.min.js" integrity="sha384-l9LHGZJ2OhRkiLm2L2YwaVW+t9jIgTzmkHingIAya15C+jNEpmSwWiJklGwb/Ma5" crossorigin="anonymous"></script>
+<script src="/static/js/motion.js?v=1.2.1"></script>
+<script src="/static/js/app.js?v=1.2.3"></script>
+</body>
+</html>

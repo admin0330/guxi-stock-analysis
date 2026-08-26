@@ -51,8 +51,10 @@
 | `TRADING_SETTINGS_PATH` | `trading/config/settings.yaml` | 交易公开参数文件 |
 | `BINANCE_TESTNET` | `true` | 是否使用 Binance Futures Testnet |
 | `STOCK_OPEN_API_ENABLED` | `true` | 是否启用公司资料补充源 |
+| `PUBLIC_DATA_REFRESH_ENABLED` | `true` | 是否在后台持续预热固定公共行情页面 |
+| `PUBLIC_DATA_REFRESH_SECONDS` | `30` | 两轮预热之间的等待秒数，范围 10–3600 |
 
-缓存、超时、重试、币圈刷新和每日关注池参数可通过 `CACHE_TTL_*`、`REQUEST_TIMEOUT`、`MAX_RETRIES`、`CRYPTO_*`、`DAILY_PICK_*` 环境变量覆盖；本地常用值已写入 `01-本地EXE源码/config.yaml`。
+缓存、后台预热、超时、重试、币圈刷新和每日关注池参数可通过 `CACHE_TTL_*`、`PUBLIC_DATA_REFRESH_*`、`REQUEST_TIMEOUT`、`MAX_RETRIES`、`CRYPTO_*`、`DAILY_PICK_*` 环境变量覆盖；本地常用值已写入 `01-本地EXE源码/config.yaml`。
 
 ## `config.yaml`
 

@@ -4,6 +4,8 @@ open_browser: true
 cache_ttl_short: 30
 cache_ttl_daily: 21600
 cache_ttl_static: 86400
+public_data_refresh_enabled: true
+public_data_refresh_seconds: 30
 request_timeout: 5
 max_retries: 2
 crypto_refresh_seconds: 60

@@ -43,6 +43,8 @@ def _load_yaml(path: Path) -> None:
         "cache_ttl_short": "CACHE_TTL_SHORT",
         "cache_ttl_daily": "CACHE_TTL_DAILY",
         "cache_ttl_static": "CACHE_TTL_STATIC",
+        "public_data_refresh_enabled": "PUBLIC_DATA_REFRESH_ENABLED",
+        "public_data_refresh_seconds": "PUBLIC_DATA_REFRESH_SECONDS",
         "request_timeout": "REQUEST_TIMEOUT",
         "max_retries": "MAX_RETRIES",
         "crypto_refresh_seconds": "CRYPTO_REFRESH_SECONDS",
@@ -125,6 +127,8 @@ TRUSTED_PROXIES = {item.strip() for item in os.getenv("TRUSTED_PROXIES", "127.0.
 CACHE_TTL_SHORT = _env_int("CACHE_TTL_SHORT", 30, 10, 3600)
 CACHE_TTL_DAILY = _env_int("CACHE_TTL_DAILY", 6 * 3600)
 CACHE_TTL_STATIC = _env_int("CACHE_TTL_STATIC", 24 * 3600)
+PUBLIC_DATA_REFRESH_ENABLED = _env_bool("PUBLIC_DATA_REFRESH_ENABLED", True)
+PUBLIC_DATA_REFRESH_SECONDS = _env_int("PUBLIC_DATA_REFRESH_SECONDS", CACHE_TTL_SHORT, 10, 3600)
 
 # 请求超时与重试
 REQUEST_TIMEOUT = _env_int("REQUEST_TIMEOUT", 5, 3, 30)

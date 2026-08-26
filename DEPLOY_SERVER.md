@@ -43,6 +43,7 @@ sudo sh /srv/guxi/current/deploy/verify-deployment.sh
 ```
 
 应用只监听 `127.0.0.1:8000`，不应直接开放该端口到公网。
+只要 `guxi.service` 保持运行，应用就会持续预热公共行情缓存；访问页面时优先使用已准备的数据。
 
 ## 4. Nginx 与 HTTPS
 

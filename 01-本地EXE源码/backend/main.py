@@ -20,6 +20,7 @@ from backend.api.routes import router
 from backend.api.trading_routes import router as trading_router
 from backend.data import http
 from backend.data.crypto_stream import crypto_stream
+from backend.data.public_refresh import public_data_refresher
 from trading.service import trading_service
 from backend.logging_config import configure_logging
 
@@ -35,9 +36,11 @@ async def lifespan(app: FastAPI):
     logger.info("股析 %s 启动", config.APP_VERSION)
     await crypto_stream.start()
     await trading_service.start()
+    await public_data_refresher.start()
     try:
         yield
     finally:
+        await public_data_refresher.stop()
         await trading_service.stop()
         await crypto_stream.stop()
         http.close()

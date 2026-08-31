@@ -19,6 +19,8 @@ STREAM_URL = (
     "streams=btcusdt@miniTicker/ethusdt@miniTicker"
 )
 BACKOFF_SECONDS = (1, 2, 5, 10, 20, 30)
+WS_COOLDOWN_SECONDS = 300
+FALLBACK_REFRESH_SECONDS = 30
 
 
 def parse_binance_message(raw: str) -> dict:
@@ -50,6 +52,7 @@ class CryptoStream:
         self.status = "disconnected"
         self.latest: dict[str, dict] = {}
         self.last_ws_event = 0.0
+        self.last_error = ""
         self._subscribers: set[asyncio.Queue] = set()
         self._tasks: list[asyncio.Task] = []
         self._stop: asyncio.Event | None = None
@@ -98,6 +101,7 @@ class CryptoStream:
             "status": self.status,
             "assets": list(self.latest.values()),
             "subscriber_count": len(self._subscribers),
+            "last_error": self.last_error,
         }
 
     def _publish(self, message: dict) -> None:
@@ -110,9 +114,10 @@ class CryptoStream:
             queue.put_nowait(message)
 
     def _set_status(self, status: str, error: str | None = None) -> None:
-        if status == self.status and not error:
+        if status == self.status and error == self.last_error:
             return
         old, self.status = self.status, status
+        self.last_error = error or ""
         logger.info("币圈实时行情状态：%s -> %s%s", old, status, f" ({error})" if error else "")
         self._publish({"type": "status", "status": status, "error": error})
 
@@ -143,9 +148,12 @@ class CryptoStream:
                 raise
             except Exception as exc:
                 failures += 1
-                delay = BACKOFF_SECONDS[min(failures - 1, len(BACKOFF_SECONDS) - 1)]
+                delay = WS_COOLDOWN_SECONDS if failures >= len(BACKOFF_SECONDS) else BACKOFF_SECONDS[failures - 1]
                 self._set_status("fallback", type(exc).__name__)
-                logger.warning("Binance WebSocket 中断，%s 秒后重连：%s", delay, exc)
+                if failures <= 3 or delay == WS_COOLDOWN_SECONDS:
+                    logger.warning("Binance WebSocket 暂不可用，%s 秒后重试：%s", delay, type(exc).__name__)
+                if delay == WS_COOLDOWN_SECONDS:
+                    failures = 0
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)
                 except asyncio.TimeoutError:
@@ -153,6 +161,7 @@ class CryptoStream:
 
     async def _fallback_loop(self) -> None:
         assert self._stop is not None
+        next_refresh = 0.0
         try:
             await asyncio.wait_for(self._stop.wait(), timeout=2)
             return
@@ -160,9 +169,10 @@ class CryptoStream:
             pass
         while not self._stop.is_set():
             stale = not self.last_ws_event or time.monotonic() - self.last_ws_event > 5
-            if self.status != "connected" or stale:
+            if (self.status != "connected" or stale) and time.monotonic() >= next_refresh:
                 try:
                     rows = await asyncio.to_thread(crypto.realtime_snapshot)
+                    next_refresh = time.monotonic() + FALLBACK_REFRESH_SECONDS
                     if self.status != "connected" or stale:
                         self._set_status("fallback")
                         for ticker in rows:
@@ -172,8 +182,9 @@ class CryptoStream:
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
+                    next_refresh = time.monotonic() + FALLBACK_REFRESH_SECONDS
                     self._set_status("disconnected", type(exc).__name__)
-                    logger.warning("币圈 REST 降级行情失败：%s", exc)
+                    logger.warning("币圈 REST 降级行情失败：%s", type(exc).__name__)
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=2)
             except asyncio.TimeoutError:

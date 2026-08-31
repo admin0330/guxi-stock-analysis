@@ -8,8 +8,8 @@
 <title>股析 · A股分析系统</title>
 <link rel="icon" type="image/png" href="/static/assets/brand/minimal-cat.png?v=20260821-cat1">
 <link rel="apple-touch-icon" href="/static/assets/brand/minimal-cat.png?v=20260821-cat1">
-<link rel="stylesheet" href="/static/css/claude.css?v=1.0.2">
-<link rel="stylesheet" href="/static/css/global-motion.css?v=1.2.1">
+<link rel="stylesheet" href="/static/css/claude.css?v=1.0.4">
+<link rel="stylesheet" href="/static/css/global-motion.css?v=1.4.0">
 </head>
 <body>
 <!-- ══════════════ 顶栏 ══════════════ -->
@@ -380,7 +380,7 @@
 
     <div class="crypto-subnav" role="tablist" aria-label="数字资产功能">
       <button class="chip active" id="cryptoDashboardTab" type="button" role="tab" aria-selected="true">行情看板</button>
-      <button class="chip" id="tradingDeskTab" type="button" role="tab" aria-selected="false">Binance 模拟盘</button>
+      <button class="chip" id="tradingDeskTab" type="button" role="tab" aria-selected="false">Binance 查询</button>
     </div>
 
     <div class="crypto-panel active" id="cryptoDashboardPanel">
@@ -473,13 +473,13 @@
 
     <div class="crypto-panel" id="tradingPanel" hidden>
       <div class="trade-banner" id="tradeBanner">
-        <div><span class="eyebrow">BINANCE · USDⓈ-M FUTURES</span><h2 id="tradeEnvironment">正在读取交易环境</h2></div>
-        <div class="trade-statuses"><span class="status-pill" id="tradeApiStatus"><i></i>API --</span><span class="status-pill" id="tradeWsStatus"><i></i>WS --</span><button class="secondary-button" id="tradeUnlockBtn" type="button" hidden>解锁主网</button></div>
+        <div><span class="eyebrow">BINANCE · READ ONLY</span><h2 id="tradeEnvironment">正在读取查询环境</h2></div>
+        <div class="trade-statuses"><span class="status-pill" id="tradeApiStatus"><i></i>API --</span><span class="status-pill" id="tradeWsStatus"><i></i>WS --</span></div>
       </div>
 
       <div class="card trade-setup" id="tradeSetup" hidden>
-        <div class="card-head"><h2>连接 Binance Futures Testnet</h2><span class="badge warn">未配置密钥</span></div>
-        <p>请在程序同目录的 <code>.env</code> 填写 <code>BINANCE_API_KEY</code> 与 <code>BINANCE_API_SECRET</code>，重启后即可读取模拟账户与下单。密钥不会显示在网页或日志中。</p>
+        <div class="card-head"><h2>连接 Binance 只读 API</h2><span class="badge warn">未配置密钥</span></div>
+        <p>请在服务端环境文件中填写只读权限的 <code>BINANCE_API_KEY</code> 与 <code>BINANCE_API_SECRET</code>，重启后即可读取账户、持仓、委托与成交。请在 Binance 后台关闭交易和提现权限；密钥不会显示在网页或日志中。</p>
       </div>
 
       <div class="trade-summary-grid">
@@ -488,54 +488,27 @@
         <div class="crypto-stat"><span>未实现盈亏</span><b class="mono" id="tradeUnrealised">--</b><small id="tradeUnrealisedAsset">USDT</small></div>
         <div class="crypto-stat"><span>BTC 实时价</span><b class="mono" id="tradeBtcPrice">--</b><small>Binance WS · USDT</small></div>
         <div class="crypto-stat"><span>ETH 实时价</span><b class="mono" id="tradeEthPrice">--</b><small>Binance WS · USDT</small></div>
-        <div class="crypto-stat"><span>策略状态</span><b id="tradeStrategy">--</b><small id="tradeSignal">等待信号</small></div>
+        <div class="crypto-stat"><span>访问模式</span><b id="tradeMode">只读查询</b><small>不支持任何交易写操作</small></div>
       </div>
 
       <div class="trade-layout">
-        <section class="card trade-order-card">
-          <div class="card-head"><h2>手动委托</h2><span class="badge neutral" id="tradeOrderEnv">Testnet</span></div>
-          <form id="tradeOrderForm" class="trade-form">
-            <label>交易对<select class="select-input" id="tradeSymbol"><option>BTCUSDT</option><option>ETHUSDT</option></select></label>
-            <label>方向<select class="select-input" id="tradeSide"><option value="Buy">买入 / 做多</option><option value="Sell">卖出 / 做空</option></select></label>
-            <label>订单类型<select class="select-input" id="tradeOrderType"><option value="Market">市价</option><option value="Limit">限价</option></select></label>
-            <label>数量<input class="select-input" id="tradeQty" type="number" min="0" step="0.001" placeholder="0.001" required></label>
-            <label id="tradePriceLabel" hidden>限价<input class="select-input" id="tradePrice" type="number" min="0" step="0.01" placeholder="价格"></label>
-            <label>止损（可选）<input class="select-input" id="tradeStopLoss" type="number" min="0" step="0.01" placeholder="自动按风控计算"></label>
-            <label>止盈（可选）<input class="select-input" id="tradeTakeProfit" type="number" min="0" step="0.01" placeholder="自动按风控计算"></label>
-            <button class="refresh-btn trade-submit" type="submit">检查并提交</button>
-          </form>
+        <section class="card query-scope-card">
+          <div class="card-head"><h2>查询范围</h2><span class="badge neutral">只读</span></div>
+          <p>此页面仅展示 Binance 返回的数据，不会发送下单、撤单、改单、平仓、转账或自动交易请求。</p>
+          <ul class="query-scope-list"><li>账户权益与可用余额</li><li>当前仓位与未实现盈亏</li><li>当前挂单、历史成交与本地查询日志</li></ul>
+          <button class="refresh-btn" id="tradeRefreshBtn" type="button">刷新查询</button>
         </section>
 
-        <section class="card trade-control-card">
-          <div class="card-head"><h2>策略与风控</h2><span class="badge neutral" id="tradeRiskState">读取中</span></div>
-          <div class="trade-control-row"><div><b>自动交易</b><p>仅在已连接账户且风控正常时可开启</p></div><button class="secondary-button" id="tradeAutoBtn" type="button">已关闭</button></div>
-          <dl class="trade-risk-list" id="tradeRiskList"><div><dt>单笔仓位上限</dt><dd>--</dd></div><div><dt>日亏损熔断</dt><dd>--</dd></div><div><dt>最大杠杆</dt><dd>--</dd></div></dl>
-          <details class="trade-settings"><summary>调整策略与风控参数</summary><form id="tradeSettingsForm" class="trade-settings-form">
-            <label>策略<select class="select-input" id="tradeSettingStrategy"><option value="ma_cross">双均线交叉</option><option value="rsi_basic">RSI 趋势</option><option value="boll_break">布林带突破</option></select></label>
-            <label>默认杠杆<input class="select-input" id="tradeSettingLeverage" type="number" min="1" max="20"></label>
-            <label>单笔仓位 %<input class="select-input" id="tradeSettingPosition" type="number" min="1" max="25" step="1"></label>
-            <label>总仓位上限 %<input class="select-input" id="tradeSettingTotalPosition" type="number" min="1" max="75" step="1"></label>
-            <label>日亏损熔断 %<input class="select-input" id="tradeSettingDailyLoss" type="number" min="1" max="25" step="1"></label>
-            <label>连续亏损熔断<input class="select-input" id="tradeSettingLosses" type="number" min="1" max="20"></label>
-            <label>硬止损 %<input class="select-input" id="tradeSettingStopLoss" type="number" min="0.1" max="20" step="0.1"></label>
-            <label>止盈 %<input class="select-input" id="tradeSettingTakeProfit" type="number" min="0.1" max="50" step="0.1"></label>
-            <label>MA 快线<input class="select-input" id="tradeSettingMaFast" type="number" min="2" max="200"></label>
-            <label>MA 慢线<input class="select-input" id="tradeSettingMaSlow" type="number" min="3" max="500"></label>
-            <label>RSI 买入阈值<input class="select-input" id="tradeSettingRsiBuy" type="number" min="1" max="49"></label>
-            <label>RSI 卖出阈值<input class="select-input" id="tradeSettingRsiSell" type="number" min="51" max="99"></label>
-            <label>BOLL 周期<input class="select-input" id="tradeSettingBollWindow" type="number" min="5" max="200"></label>
-            <label>BOLL 标准差<input class="select-input" id="tradeSettingBollStd" type="number" min="0.5" max="5" step="0.1"></label>
-            <button class="secondary-button" type="submit">保存并热更新</button>
-          </form></details>
-          <button class="danger-button" id="tradeEmergencyBtn" type="button">紧急停止并撤销挂单</button>
-          <button class="danger-button ghost" id="tradeEmergencyCloseBtn" type="button">紧急停止并全部平仓</button>
+        <section class="card query-status-card">
+          <div class="card-head"><h2>服务状态</h2><span class="badge neutral">安全边界</span></div>
+          <dl class="query-status-list"><div><dt>账户连接</dt><dd id="tradeAccountMode">只读</dd></div><div><dt>数据权限</dt><dd>查询</dd></div><div><dt>交易权限</dt><dd>已移除</dd></div><div><dt>提现权限</dt><dd>不使用</dd></div></dl>
         </section>
       </div>
 
-      <section class="card trade-table-card"><div class="card-head"><h2>当前仓位</h2><span class="muted" id="tradePositionsTime">独立加载</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>开仓价</th><th>标记价</th><th>未实现盈亏</th><th></th></tr></thead><tbody class="stagger-in" id="tradePositionsBody" data-auto-animate><tr><td colspan="7">正在读取…</td></tr></tbody></table></div></section>
-      <section class="card trade-table-card"><div class="card-head"><h2>挂单与今日成交</h2><button class="stream-retry" id="tradeRefreshBtn" type="button">刷新</button></div><div class="trade-table-tabs"><button class="chip active" data-trade-table="orders">当前挂单</button><button class="chip" data-trade-table="trades">今日成交</button></div><div class="table-scroll"><table class="data-table"><thead id="tradeHistoryHead"></thead><tbody class="stagger-in" id="tradeHistoryBody" data-auto-animate><tr><td>正在读取…</td></tr></tbody></table></div></section>
+      <section class="card trade-table-card"><div class="card-head"><h2>当前仓位</h2><span class="muted" id="tradePositionsTime">独立加载</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>交易对</th><th>方向</th><th>数量</th><th>开仓价</th><th>标记价</th><th>未实现盈亏</th></tr></thead><tbody class="stagger-in" id="tradePositionsBody" data-auto-animate><tr><td colspan="6">正在读取…</td></tr></tbody></table></div></section>
+      <section class="card trade-table-card"><div class="card-head"><h2>挂单与今日成交</h2><span class="muted">只读记录</span></div><div class="trade-table-tabs"><button class="chip active" data-trade-table="orders">当前挂单</button><button class="chip" data-trade-table="trades">今日成交</button></div><div class="table-scroll"><table class="data-table"><thead id="tradeHistoryHead"></thead><tbody class="stagger-in" id="tradeHistoryBody" data-auto-animate><tr><td>正在读取…</td></tr></tbody></table></div></section>
       <section class="card trade-log-card"><div class="card-head"><h2>运行记录</h2><span class="muted">本地审计日志</span></div><div class="trade-logs stagger-in" id="tradeLogs" data-auto-animate><p class="muted">正在读取…</p></div></section>
-      <p class="disclaimer">加密货币与杠杆风险极高，自动交易与手动委托都可能导致本金全部亏损。本系统仅供学习研究，不构成投资建议。系统默认 Testnet 且默认关闭自动交易；主网必须在本机配置中显式开启，并在每次会话中再次解锁。</p>
+      <p class="disclaimer">本页仅展示 Binance 公开行情及账户查询结果，不发送任何交易或资金操作请求。数据可能延迟或暂时不可用，仅供学习参考，不构成投资建议。</p>
     </div>
   </section>
 
@@ -549,12 +522,6 @@
   <span class="market-fab-label" id="marketFabLabel">币圈</span>
 </button>
 
-<aside class="trade-safety-dock" id="tradeSafetyDock" aria-label="交易安全快捷操作" hidden>
-  <span><i></i><b>交易安全</b></span>
-  <button class="secondary-button" id="tradeAutoDockBtn" type="button">自动交易已关闭</button>
-  <button class="danger-button" id="tradeEmergencyDockBtn" type="button">紧急停止</button>
-</aside>
-
 <footer class="footer">
   <div>
     <strong>股析 · 本地市场分析 · v1.0.0</strong>
@@ -565,15 +532,6 @@
 </footer>
 
 <div class="toast" id="toast"></div>
-
-<dialog class="app-dialog trade-confirm-dialog" id="tradeConfirmDialog">
-  <form method="dialog" id="tradeConfirmForm">
-    <span class="eyebrow">交易确认</span><h2 id="tradeConfirmTitle">确认操作</h2>
-    <p id="tradeConfirmText"></p>
-    <label id="tradePhraseWrap" hidden>输入确认短语<input class="select-input" id="tradeConfirmPhrase" autocomplete="off"></label>
-    <div class="dialog-actions"><button class="secondary-button" value="cancel">取消</button><button class="danger-button" id="tradeConfirmSubmit" value="confirm">确认执行</button></div>
-  </form>
-</dialog>
 
 <dialog class="app-dialog" id="welcomeDialog">
   <form method="dialog">
@@ -607,8 +565,7 @@
 </dialog>
 
 <script src="/static/js/vendor/echarts.min.js?v=5.5.1"></script>
-<script type="module" src="https://unpkg.com/@formkit/auto-animate@1.0.0-beta.6/index.min.js" integrity="sha384-l9LHGZJ2OhRkiLm2L2YwaVW+t9jIgTzmkHingIAya15C+jNEpmSwWiJklGwb/Ma5" crossorigin="anonymous"></script>
-<script src="/static/js/motion.js?v=1.2.1"></script>
-<script src="/static/js/app.js?v=1.2.3"></script>
+<script src="/static/js/motion.js?v=1.3.0"></script>
+<script src="/static/js/app.js?v=1.2.5"></script>
 </body>
 </html>

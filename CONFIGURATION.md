@@ -6,7 +6,7 @@
 
 - 源码模式：`.env` 位于项目根目录的 `03-本地运行数据/.env`。
 - Windows 便携版：`.env` 位于 `A股分析系统.exe` 同目录。
-- systemd：使用 `/etc/guxi/guxi.env` 注入环境变量。
+- systemd：使用 `/etc/ym3861-app/ym3861-app.env` 注入环境变量。
 
 仓库只跟踪 `.env.example`。所有凭据字段保持空值，真实 `.env` 被 `.gitignore` 排除。
 
@@ -16,8 +16,6 @@
 |---|---|---|
 | `BINANCE_API_KEY` | Binance API Key | 空 |
 | `BINANCE_API_SECRET` | Binance API Secret | 空 |
-| `TELEGRAM_BOT_TOKEN` | Telegram 通知令牌 | 空 |
-| `TELEGRAM_CHAT_ID` | Telegram 接收方 | 空 |
 | `ADMIN_USERNAME` | 可选的首次管理员初始化 | 空或省略 |
 | `ADMIN_PASSWORD` | 可选的首次管理员密码 | 空或省略 |
 
@@ -48,7 +46,7 @@
 | `GUXI_LOG_LEVEL` | `INFO` | 日志等级 |
 | `GUXI_LOG_DAYS` | `14` | 日志保留天数 |
 | `AUTH_DB_PATH` | 数据目录下的 SQLite | 登录数据库路径 |
-| `TRADING_SETTINGS_PATH` | `trading/config/settings.yaml` | 交易公开参数文件 |
+| `TRADING_SETTINGS_PATH` | `trading/config/settings.yaml` | Binance 只读查询公开参数文件 |
 | `BINANCE_TESTNET` | `true` | 是否使用 Binance Futures Testnet |
 | `STOCK_OPEN_API_ENABLED` | `true` | 是否启用公司资料补充源 |
 | `PUBLIC_DATA_REFRESH_ENABLED` | `true` | 是否在后台持续预热固定公共行情页面 |
@@ -62,11 +60,10 @@
 
 ## `trading/config/settings.yaml`
 
-该文件保存交易对、策略、杠杆与风控参数，不保存交易所凭据。安全默认值为：
+该文件保存查询交易对与历史兼容参数，不保存交易所凭据。运行时交易写能力已移除：
 
-- `enable_auto_trade: false`
-- `allow_mainnet: false`
-- 最大杠杆与仓位限制启用
+- 不提供下单、撤单、改单、平仓、转账和自动交易
+- `enable_auto_trade`、`allow_mainnet` 旧字段即使存在也会被强制关闭
 - API Key/Secret 只从环境变量读取
 
 ## 提交前检查

@@ -18,7 +18,7 @@ class ReleaseAuditTests(unittest.TestCase):
             "frontend/css/global-motion.css", "frontend/js/motion.js",
             "frontend/js/vendor/echarts.min.js", "cache", "logs", "data/reports",
             ".env.example", "trading/config/settings.yaml", "trading/config/.env.example",
-            "DEPLOY.md",
+            "DEPLOY.md", "deploy/ym3861-backup.sh", "deploy/ym3861-backup.service", "deploy/ym3861-backup.timer",
         ]
         self.assertTrue(all((PACKAGE / item).exists() for item in required))
         # 便携目录也是运行目录，可保留用户自己的 .env、状态、缓存和日志；构建脚本不会分发这些内容。
@@ -45,30 +45,41 @@ class ReleaseAuditTests(unittest.TestCase):
         self.assertIn("data-pick-detail", js)
         self.assertIn('id="marketFab"', html)
         self.assertIn('id="cryptoStreamStatus"', html)
-        self.assertIn('id="tradeSafetyDock"', html)
+        self.assertIn('id="tradingDeskTab"', html)
+        self.assertIn("Binance 查询", html)
+        for removed in ('tradeOrderForm', 'tradeAutoBtn', 'tradeSettingsForm', 'tradeUnlockBtn', 'tradeEmergencyBtn', 'tradeEmergencyCloseBtn', 'tradeSafetyDock'):
+            self.assertNotIn(removed, html)
         self.assertIn('id="tradeBtcPrice"', html)
         self.assertIn('id="tradeEthPrice"', html)
         self.assertIn('new WebSocket(`${protocol}//${location.host}/ws/crypto`)', js)
         self.assertIn('document.addEventListener("visibilitychange"', js)
         self.assertIn("loadCryptoAnalysis()", js)
         self.assertIn("prefers-reduced-motion: reduce", css)
-        self.assertIn("translateY(-8px)", css)
-        self.assertIn("--duration-page: 260ms", css)
+        self.assertIn("prefers-color-scheme: dark", css)
+        self.assertIn("--duration-page: 240ms", css)
+        self.assertNotIn(".view.active.view-enter", css)
+        self.assertNotIn('nextView.classList.add("active", "view-enter")', js)
+        self.assertIn("function chartTheme()", js)
         self.assertGreaterEqual(js.count("Promise.allSettled"), 4)
         motion_css = (ROOT / "frontend/css/global-motion.css").read_text(encoding="utf-8")
         motion_js = (ROOT / "frontend/js/motion.js").read_text(encoding="utf-8")
         for token in ("--ease-spring-soft", "--ease-spring-snappy", "--ease-out-smooth", "--ease-in-smooth"):
             self.assertIn(token, motion_css)
-        for delay in (20, 45, 70, 95, 120, 145, 170):
+        for delay in (12, 28, 44, 60, 76, 92, 108):
             self.assertIn(f"animation-delay: {delay}ms", motion_css)
         self.assertIn("prefers-reduced-motion: reduce", motion_css)
-        self.assertIn("scale(0.96) translateY(1px)", motion_css)
+        self.assertIn("prefers-color-scheme: dark", motion_css)
+        self.assertIn("scale(0.97) translateY(1px)", motion_css)
+        self.assertIn("backdrop-filter: saturate(150%) blur(18px)", motion_css)
+        self.assertIn("--motion-glass-popover", motion_css)
         self.assertIn("::view-transition-old(root)", motion_css)
         self.assertIn(".ws-flash", motion_css)
         self.assertIn(".ripple-effect", motion_css)
         self.assertIn('document.addEventListener("pointerdown"', motion_js)
         self.assertIn('ripple.addEventListener("animationend"', motion_js)
         self.assertIn("window.smoothRender", motion_js)
+        self.assertIn("window.transitionViews", motion_js)
+        self.assertIn("window.motionNavigate", motion_js)
         self.assertIn("window.smoothInsertWSItem", motion_js)
         self.assertIn("document.startViewTransition", motion_js)
         self.assertIn("window.highlightNode", motion_js)
@@ -88,11 +99,12 @@ class ReleaseAuditTests(unittest.TestCase):
             self.assertIn('<meta name="view-transition" content="same-origin">', page_html)
             self.assertIn("/static/css/global-motion.css", page_html)
             self.assertIn("/static/js/motion.js", page_html)
-            self.assertIn("https://unpkg.com/@formkit/auto-animate@1.0.0-beta.6/index.min.js", page_html)
+            self.assertNotIn("unpkg.com", page_html)
             self.assertNotIn("/static/css/buttons.css", page_html)
             self.assertNotIn("/static/js/ripple.js", page_html)
         backend = (ROOT / "backend/main.py").read_text(encoding="utf-8")
-        self.assertIn("script-src 'self' https://unpkg.com", backend)
+        self.assertIn("script-src 'self';", backend)
+        self.assertNotIn("unpkg.com", backend)
         for seconds in (1, 60, 300, 1200):
             self.assertIn(f'data-seconds="{seconds}"', html)
 

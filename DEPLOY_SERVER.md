@@ -1,83 +1,51 @@
 # Linux 服务器部署
 
-以下为通用 Debian/Ubuntu + systemd + Nginx 部署方式。示例使用 `example.com`、系统用户 `guxi`、应用目录 `/srv/guxi`；部署前按实际环境替换域名。
+公网实例为 `ym3861.cn`，当前部署目录为 `/srv/ym3861-app`，systemd 服务为
+`ym3861-app.service`，应用只监听 `127.0.0.1:8000`。详细迁移、Cloudflare、Nginx、
+备份和 Komari 替换步骤见 [`02-服务器部署/DEPLOY.md`](02-服务器部署/DEPLOY.md)。
 
-## 1. 安装与目录
+## 当前发布方式
 
-```bash
-sudo apt-get update
-sudo apt-get install -y git python3 python3-venv python3-pip build-essential nginx certbot python3-certbot-nginx
-sudo adduser --system --group --home /srv/guxi --shell /usr/sbin/nologin guxi
-sudo install -d -o guxi -g guxi -m 0750 /srv/guxi/shared
-sudo install -d -o root -g guxi -m 0750 /etc/guxi
-sudo -u guxi git clone https://github.com/admin0330/guxi-stock-analysis.git /srv/guxi/current
-sudo -u guxi python3 -m venv /srv/guxi/current/.venv
-sudo -u guxi /srv/guxi/current/.venv/bin/pip install -r '/srv/guxi/current/01-本地EXE源码/requirements.txt'
-sudo -u guxi cp '/srv/guxi/current/01-本地EXE源码/trading/config/settings.yaml' /srv/guxi/shared/trading-settings.yaml
-```
-
-## 2. 服务器环境文件
+从 `01-本地EXE源码` 打包时排除 `.env`、数据库、缓存和日志，再上传到服务器新 release：
 
 ```bash
-sudo install -o root -g guxi -m 0640 /srv/guxi/current/deploy/guxi.env.example /etc/guxi/guxi.env
-sudoedit /etc/guxi/guxi.env
+RELEASE_ID="$(date -u +%Y%m%d-%H%M%S)"
+RELEASE_DIR="/srv/ym3861-app/releases/$RELEASE_ID"
+sudo install -d -o root -g ymapp -m 0750 "$RELEASE_DIR"
+sudo tar -xzf /tmp/ym3861-app-release.tgz -C "$RELEASE_DIR"
+sudo python3 -m venv "$RELEASE_DIR/.venv"
+sudo "$RELEASE_DIR/.venv/bin/pip" install -r "$RELEASE_DIR/requirements.txt"
+sudo ln -sfn "$RELEASE_DIR" /srv/ym3861-app/current
+sudo systemctl restart ym3861-app
+sudo sh /srv/ym3861-app/current/deploy/verify-deployment.sh http://127.0.0.1:8000
 ```
 
-必须填写 `PUBLIC_BASE_URL` 和 `ALLOWED_HOSTS`。API Key、Secret、Token 均可保持空值；真实凭据只写在 `/etc/guxi/guxi.env`，不能写入仓库。
+生产环境变量只放在 `/etc/ym3861-app/ym3861-app.env`，权限为 `0640 root:ymapp`。
+首次管理员创建后立即删除 `ADMIN_USERNAME`、`ADMIN_PASSWORD` 两个初始化变量；真实
+Binance Key 只用于余额、持仓、挂单、成交和行情查询，交易所侧必须关闭交易、提现和转账权限。
 
-交互式创建管理员：
+## HTTPS、反代与备份
 
-```bash
-cd '/srv/guxi/current/01-本地EXE源码'
-sudo -u guxi env GUXI_DATA_DIR=/srv/guxi/shared AUTH_DB_PATH=/srv/guxi/shared/data/auth.sqlite3 /srv/guxi/current/.venv/bin/python -m backend.auth create-admin admin
-```
+- Cloudflare DNS 指向服务器，SSL 使用 `Full (strict)`，源站使用有效证书。
+- Nginx 反代 `/stock`、API 和 WebSocket；不直接暴露 `8000`。
+- `ym3861-backup.timer` 每日备份共享数据和环境文件，默认保留 7 份；备份包必须加密复制到服务器外。
+- 不缓存 `/api/*`、`/ws/*`、`/login` 和 `/admin`。
 
-## 3. systemd
+## TeamSpeak 保留规则
 
-```bash
-sudo install -o root -g root -m 0644 /srv/guxi/current/deploy/guxi.service /etc/systemd/system/guxi.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now guxi.service
-sudo systemctl status guxi.service --no-pager
-sudo sh /srv/guxi/current/deploy/verify-deployment.sh
-```
+部署只允许重启 `ym3861-app` 和 reload Nginx。不能停止或重建 `teamspeak3-server`，必须保留：
 
-应用只监听 `127.0.0.1:8000`，不应直接开放该端口到公网。
-只要 `guxi.service` 保持运行，应用就会持续预热公共行情缓存；访问页面时优先使用已准备的数据。
+- `9987/UDP`：语音
+- `30033/TCP`：文件传输
 
-## 4. Nginx 与 HTTPS
+启用 UFW 时明确放行上述两个端口、SSH `22/TCP`、HTTP `80/TCP` 和 HTTPS `443/TCP`，并在新 SSH 会话及 `docker ps` 中复核 TeamSpeak 仍为 `Up`。
 
-先确认域名已解析到服务器，并通过 Nginx 默认站点获取证书；再复制模板，将所有 `example.com` 替换为实际域名：
+## 上线检查
 
-```bash
-sudo certbot certonly --webroot -w /var/www/html -d example.com
-sudo cp /srv/guxi/current/deploy/nginx.conf.example /etc/nginx/sites-available/guxi
-sudoedit /etc/nginx/sites-available/guxi
-sudo ln -sfn /etc/nginx/sites-available/guxi /etc/nginx/sites-enabled/guxi
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-确认公网只开放 80/443，WebSocket `/ws/crypto` 与 `/api/trading/ws` 可正常升级，Cookie 包含 Secure、HttpOnly、SameSite=Lax。
-
-## 5. 更新
-
-更新前备份 `/srv/guxi/shared` 与 `/etc/guxi/guxi.env`，然后执行：
-
-```bash
-cd /srv/guxi/current
-sudo -u guxi git pull --ff-only
-sudo -u guxi .venv/bin/pip install -r '01-本地EXE源码/requirements.txt'
-sudo systemctl restart guxi.service
-sudo sh deploy/verify-deployment.sh
-```
-
-## 6. 上线检查
-
-- [ ] 仓库与服务器环境文件中没有真实凭据
-- [ ] `/etc/guxi/guxi.env` 权限为 `0640 root:guxi`
-- [ ] `PUBLIC_BASE_URL`、`ALLOWED_HOSTS` 和证书域名一致
-- [ ] 应用只监听 `127.0.0.1:8000`
-- [ ] 未登录业务 API 返回 401，管理员和普通用户权限正确
-- [ ] Mainnet 与自动交易保持关闭，除非已完成独立风险验收
-- [ ] 数据目录和环境文件已有加密备份及恢复验证
+- [ ] `/stock` 未登录返回 303，业务 API 未登录返回 401
+- [ ] 登录 Cookie 为 Secure、HttpOnly、SameSite=Lax
+- [ ] admin 可管理用户，普通用户不能访问 `/admin`
+- [ ] Binance 仅查询；下单、撤单、改单、平仓、自动交易和紧急停止路由不存在
+- [ ] `ym3861-backup.timer` 已启用并有可校验备份
+- [ ] TeamSpeak、邮件箱、Nginx、Fail2ban 均保持运行
+- [ ] Komari 仅在备份并完成应用验收后，按精确资源删除

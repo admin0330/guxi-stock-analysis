@@ -17,6 +17,7 @@ from trading.settings import TradingSettings
 
 logger = logging.getLogger(__name__)
 BACKOFF = (1, 2, 5, 10, 20, 30)
+WS_COOLDOWN = 300
 
 
 class _Socket:
@@ -124,8 +125,11 @@ class MarketData:
                 self.status = "reconnecting"
                 if self.settings.credentials_configured:
                     self.private_status = "reconnecting"
-                delay = BACKOFF[min(failures - 1, len(BACKOFF) - 1)]
-                logger.warning("Binance WebSocket 连接失败，%s 秒后重试：%s", delay, exc)
+                delay = WS_COOLDOWN if failures >= len(BACKOFF) else BACKOFF[failures - 1]
+                if failures <= 3 or delay == WS_COOLDOWN:
+                    logger.warning("Binance WebSocket 暂不可用，%s 秒后重试：%s", delay, type(exc).__name__)
+                if delay == WS_COOLDOWN:
+                    failures = 0
                 self._publish({"type": "connection", "public": self.status, "private": self.private_status})
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=delay)

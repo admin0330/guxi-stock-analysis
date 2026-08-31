@@ -2,7 +2,7 @@
 
 股析是一套可本地运行或部署到 Linux 服务器的 A 股与加密资产分析系统。后端使用 FastAPI，前端使用原生 HTML、CSS、JavaScript 与内置 ECharts，并提供 Windows 便携版打包入口。
 
-> 本系统仅供学习研究与信息参考，不构成投资建议。行情可能延迟、缺失或因上游变化暂不可用；加密资产和杠杆交易可能造成全部本金损失。
+> 本系统仅供学习研究与信息参考，不构成投资建议。行情可能延迟、缺失或因上游变化暂不可用；加密资产波动较大，请独立判断。
 
 ## 功能
 
@@ -11,7 +11,7 @@
 - 每日关注池：按成交活跃度、趋势与技术指标生成本地候选结果。
 - 涨停复盘与小白日报：情绪、连板、行业、涨跌榜、板块和历史快照。
 - 加密资产看板：BTC/ETH 行情、K 线、MA、MACD、RSI、BOLL 与 WebSocket 实时价格。
-- Binance Futures 交易台：Testnet/Mainnet 状态、账户、仓位、订单、策略和风控；默认 Testnet、自动交易关闭、Mainnet 关闭。
+- Binance 只读查询：Testnet/Mainnet 环境状态、账户、余额、持仓、挂单、成交与查询日志；系统不提供下单、撤单、改单、平仓、转账或自动交易。
 - 登录与用户管理：服务端 Session、CSRF、防暴力破解、管理员后台和用户数据隔离。
 - Windows 桌面入口：启动本地服务、自动打开浏览器并提供托盘退出。
 - 公共数据预热：服务运行期间持续刷新固定页面缓存，访问首页、日报、涨停、关注池和默认币圈分析时优先读取热缓存。
@@ -31,11 +31,11 @@
 ├── 01-本地EXE源码/
 │   ├── backend/             API、鉴权、行情和分析逻辑
 │   ├── frontend/            页面、样式、脚本和品牌资源
-│   ├── trading/             交易所连接、策略、风控和审计
+│   ├── trading/             Binance 只读连接、账户同步和查询审计
 │   ├── tests/               单元、集成和浏览器冒烟测试
 │   ├── run.py               本地源码入口
 │   └── build.bat            Windows 便携版打包入口
-├── deploy/                  通用 systemd、Nginx 和环境模板
+├── 02-服务器部署/           systemd、Nginx、备份和迁移脚本
 ├── 05-项目文档/             第三方许可与验收记录
 ├── CONFIGURATION.md         配置项与敏感信息边界
 ├── DEPLOY_LOCAL.md          本地运行和 Windows 打包
@@ -63,14 +63,14 @@ python run.py
 - [Linux 服务器部署](DEPLOY_SERVER.md)
 - [完整配置说明](CONFIGURATION.md)
 
-仓库只提供空值凭据模板。真实配置应写入被 Git 忽略的本机 `.env` 或服务器 `/etc/guxi/guxi.env`，不能写入源码、Issue、日志或聊天记录。
+仓库只提供空值凭据模板。真实配置应写入被 Git 忽略的本机 `.env` 或服务器 `/etc/ym3861-app/ym3861-app.env`，不能写入源码、Issue、日志或聊天记录。
 
 ## 安全默认值
 
 - 本地服务只监听 `127.0.0.1`。
-- Binance Futures 默认使用 Testnet。
-- 自动交易和 Mainnet 默认关闭。
+- Binance 查询默认使用 Testnet；如需读取主网账户，只改变查询环境，不会开启任何交易能力。
 - 密钥只由后端从环境变量读取，不返回前端。
+- Binance API Key 上线前应在交易所后台关闭交易、提现和转账权限，系统只保留查询用途。
 - 登录密码使用 scrypt 哈希；Session 数据库只保存令牌摘要。
 - 写 API 校验 CSRF，生产环境应启用 Secure/HttpOnly/SameSite Cookie。
 
@@ -85,7 +85,7 @@ python run.py
 | `GET /api/daily-picks*` | 每日关注池、历史和规则 |
 | `GET /api/daily/*` | 日报模块与历史快照 |
 | `GET /api/crypto/*`、`WS /ws/crypto` | 加密资产分析与实时行情 |
-| `/api/trading/*` | 交易状态、账户、仓位、订单、策略与风控 |
+| `GET /api/trading/*`、`WS /api/trading/ws` | Binance 只读状态、账户、仓位、挂单、成交与日志 |
 | `/api/auth/*`、`/api/admin/*` | 登录、会话和用户管理 |
 
 开发模式可在登录后访问 `/docs` 查看完整 OpenAPI 文档。

@@ -1,1 +1,1 @@
-"""Binance Futures 自动交易子系统。"""
+"""Binance Futures 只读查询子系统。"""

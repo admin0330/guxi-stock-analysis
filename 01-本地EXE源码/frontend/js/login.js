@@ -5,8 +5,9 @@ const button = document.getElementById("loginButton");
 const errorBox = document.getElementById("loginError");
 
 function targetAfterLogin() {
-  const value = new URLSearchParams(location.search).get("next") || "/";
-  return value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/login") ? value : "/";
+  const fallback = "/stock";
+  const value = new URLSearchParams(location.search).get("next") || fallback;
+  return value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/login") ? value : fallback;
 }
 
 form.addEventListener("submit", async (event) => {
@@ -25,7 +26,9 @@ form.addEventListener("submit", async (event) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "登录失败，请稍后重试");
-    location.replace(targetAfterLogin());
+    const target = targetAfterLogin();
+    if (typeof window.motionNavigate === "function") await window.motionNavigate(target, { replace: true });
+    else location.replace(target);
   } catch (error) {
     errorBox.textContent = error.message || "登录失败，请稍后重试";
     form.password.select();

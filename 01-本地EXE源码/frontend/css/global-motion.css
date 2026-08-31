@@ -1,141 +1,400 @@
-/* 股析 · Apple-like 全局微动效：柔和阻尼、双层交叉淡入与递进进场。 */
+/* 股析 · 全站动效系统：克制的物理微交互与流体玻璃表层，零外部运行依赖。 */
 :root {
-  --ease-spring-soft: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring-snappy: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-smooth: cubic-bezier(0.32, 0, 0.67, 0);
+  --ease-spring-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring-snappy: cubic-bezier(0.18, 0.9, 0.24, 1);
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-smooth: cubic-bezier(0.4, 0, 1, 1);
+  --dur-press: 80ms;
   --dur-instant: 140ms;
-  --dur-fast: 220ms;
-  --dur-smooth: 360ms;
-  --motion-ring: rgba(204, 120, 92, 0.16);
-  --motion-flash: rgba(217, 119, 87, 0.14);
+  --dur-fast: 180ms;
+  --dur-page-out: 180ms;
+  --dur-page-in: 240ms;
+  --dur-smooth: 260ms;
+  --motion-ring: rgba(204, 120, 92, 0.32);
+  --motion-focus-halo: rgba(204, 120, 92, 0.1);
+  --motion-flash: rgba(204, 120, 92, 0.1);
+  --motion-flash-edge: rgba(204, 120, 92, 0.18);
+  --motion-shadow: rgba(28, 25, 23, 0.12);
+  --motion-card-shadow: 0 12px 28px -24px rgba(28, 25, 23, 0.28);
+  --motion-glass-bar: rgba(249, 246, 241, 0.82);
+  --motion-glass-panel: rgba(255, 253, 249, 0.82);
+  --motion-glass-popover: rgba(255, 253, 249, 0.9);
+  --motion-glass-edge: rgba(92, 76, 63, 0.16);
+  --motion-glass-highlight: rgba(255, 255, 255, 0.72);
+  --motion-backdrop: rgba(28, 25, 23, 0.38);
+  --motion-skeleton-base: rgba(232, 226, 217, 0.72);
+  --motion-skeleton-shine: rgba(255, 253, 249, 0.94);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --motion-ring: rgba(236, 146, 116, 0.48);
+    --motion-focus-halo: rgba(236, 146, 116, 0.13);
+    --motion-flash: rgba(236, 146, 116, 0.12);
+    --motion-flash-edge: rgba(236, 146, 116, 0.22);
+    --motion-shadow: rgba(0, 0, 0, 0.42);
+    --motion-card-shadow: 0 18px 38px -28px rgba(0, 0, 0, 0.86);
+    --motion-glass-bar: rgba(9, 12, 17, 0.78);
+    --motion-glass-panel: rgba(18, 22, 29, 0.76);
+    --motion-glass-popover: rgba(20, 24, 32, 0.9);
+    --motion-glass-edge: rgba(255, 255, 255, 0.13);
+    --motion-glass-highlight: rgba(255, 255, 255, 0.1);
+    --motion-backdrop: rgba(0, 0, 0, 0.64);
+    --motion-skeleton-base: rgba(255, 255, 255, 0.055);
+    --motion-skeleton-shine: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* 玻璃只用于稳定的壳层与浮层，避免给每张数据卡增加昂贵模糊。 */
+:is(.topbar, .tabs, .admin-topbar) {
+  background: var(--motion-glass-bar);
+  border-color: var(--motion-glass-edge);
+  box-shadow: inset 0 1px 0 var(--motion-glass-highlight);
+}
+
+:is(.auth-card, .panel) {
+  background: var(--motion-glass-panel);
+  border-color: var(--motion-glass-edge);
+  box-shadow: inset 0 1px 0 var(--motion-glass-highlight), var(--motion-card-shadow);
+}
+
+:is(.global-search, .search-suggest, .app-dialog, .loading-dock) {
+  background: var(--motion-glass-popover);
+  border-color: var(--motion-glass-edge);
+  box-shadow: inset 0 1px 0 var(--motion-glass-highlight), 0 18px 44px -28px var(--motion-shadow);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :is(.topbar, .tabs, .admin-topbar, .auth-card, .panel, .global-search, .search-suggest, .app-dialog, .loading-dock) {
+    -webkit-backdrop-filter: saturate(150%) blur(18px);
+    backdrop-filter: saturate(150%) blur(18px);
+  }
+}
+
+/* 跨登录页、业务页与后台页的原生页面过渡。 */
 ::view-transition-old(root) {
-  animation: smooth-exit var(--dur-fast) var(--ease-in-smooth) both;
+  animation: motion-page-out var(--dur-page-out) var(--ease-in-smooth) both;
 }
 
 ::view-transition-new(root) {
-  animation: smooth-enter var(--dur-smooth) var(--ease-spring-soft) both;
+  animation: motion-page-in var(--dur-page-in) var(--ease-out-smooth) both;
 }
 
-:is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]) {
+/* 同页视图切换时只动画内容，顶部导航保持稳定。 */
+html.motion-local-transition::view-transition-old(root),
+html.motion-local-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.view.active { view-transition-name: app-content; }
+
+::view-transition-old(app-content) {
+  animation: motion-scene-out var(--dur-page-out) var(--ease-in-smooth) both;
+}
+
+::view-transition-new(app-content) {
+  animation: motion-scene-in var(--dur-page-in) var(--ease-out-smooth) both;
+}
+
+/* 首次进入每个真实页面。 */
+body.motion-ready :is(.topbar, .admin-topbar) {
+  animation: motion-shell-down 240ms var(--ease-out-smooth) both;
+}
+
+body.motion-ready :is(.tabs, .admin-intro, .auth-brand) {
+  animation: motion-shell-in 260ms var(--ease-out-smooth) 24ms both;
+}
+
+body.motion-ready :is(.content, .admin-grid, .auth-story-copy, .auth-card) {
+  animation: motion-shell-in 300ms var(--ease-out-smooth) 48ms both;
+}
+
+body.motion-leaving { pointer-events: none; }
+
+/* 页面与子页面切换的无 View Transition API 回退。 */
+.motion-scene-leave {
+  pointer-events: none;
+  animation: motion-scene-out var(--dur-page-out) var(--ease-in-smooth) both !important;
+}
+
+.motion-scene-enter {
+  animation: motion-scene-in var(--dur-page-in) var(--ease-out-smooth) both !important;
+}
+
+/* 所有按钮与按钮类链接。 */
+:is(button, .btn, a.button, .primary-button, .secondary-button, .danger-button, .text-button, input[type="button"], input[type="submit"]) {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transform-origin: 50% 55%;
   transition:
     transform var(--dur-fast) var(--ease-spring-snappy),
-    box-shadow var(--dur-fast) var(--ease-spring-soft),
-    background-color var(--dur-smooth) var(--ease-out-smooth),
-    border-color var(--dur-smooth) var(--ease-out-smooth),
-    color var(--dur-fast) var(--ease-out-smooth);
-  will-change: transform;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  :is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"]):hover {
-    transform: translateY(-1px) scale(1.01);
-    box-shadow: 0 4px 16px -2px rgba(28, 25, 23, 0.08), 0 2px 6px -1px rgba(28, 25, 23, 0.04);
-  }
-}
-
-:is(button, .btn, a.button, .interactive-item, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"]):active {
-  transform: scale(0.96) translateY(1px) !important;
-  transition-duration: 80ms !important;
-}
-
-:is(input, textarea, select) {
-  transition:
-    transform var(--dur-fast) var(--ease-spring-soft),
+    box-shadow var(--dur-fast) var(--ease-out-smooth),
+    background-color var(--dur-fast) var(--ease-out-smooth),
     border-color var(--dur-fast) var(--ease-out-smooth),
-    box-shadow var(--dur-fast) var(--ease-spring-soft),
-    background-color var(--dur-smooth) var(--ease-out-smooth);
-}
-
-:is(input, textarea, select):focus-visible {
-  outline: 0;
-  transform: translateY(-1px);
-  box-shadow: 0 0 0 3px var(--motion-ring);
-}
-
-:is(.card, .panel, .auth-card) {
-  transition:
-    transform var(--dur-smooth) var(--ease-spring-soft),
-    box-shadow var(--dur-fast) var(--ease-spring-soft),
-    background-color var(--dur-smooth) var(--ease-out-smooth);
-  will-change: transform;
+    color var(--dur-instant) var(--ease-out-smooth),
+    opacity var(--dur-instant) var(--ease-out-smooth);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(.card, .panel, .auth-card):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px -8px rgba(28, 25, 23, 0.12), 0 3px 8px -4px rgba(28, 25, 23, 0.08);
+  :is(button, .btn, a.button, .primary-button, .secondary-button, .danger-button, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"], .tab, .chip, .text-button, .stream-retry, .account-logout, .row-actions button):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px -12px var(--motion-shadow), inset 0 1px 0 var(--motion-glass-highlight);
+  }
+
+  :is(.tab, .chip, .text-button, .stream-retry, .account-logout, .row-actions button):not(:disabled, [aria-disabled="true"]):hover {
+    transform: translateY(-1px);
   }
 }
 
+:is(button, .btn, a.button, .primary-button, .secondary-button, .danger-button, .text-button, input[type="button"], input[type="submit"]):not(:disabled, [aria-disabled="true"]):active,
+:is(button, .btn, a.button, .primary-button, .secondary-button, .danger-button, .text-button, input[type="button"], input[type="submit"]).motion-key-press {
+  transform: scale(0.97) translateY(1px) !important;
+  transition-duration: var(--dur-press) !important;
+}
+
+:is(button, .btn, a.button, input[type="button"], input[type="submit"]):is(:disabled, [aria-disabled="true"]) {
+  box-shadow: none !important;
+  cursor: not-allowed;
+  filter: saturate(0.55);
+  transform: none !important;
+}
+
+:is(button, .btn, a.button, input[type="button"], input[type="submit"]):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--motion-ring), 0 0 0 5px var(--motion-focus-halo), 0 8px 18px -14px var(--motion-shadow);
+}
+
+/* 点击涟漪由 motion.js 事件委托创建。 */
 .motion-ripple-host {
-  position: relative !important;
   overflow: hidden !important;
   isolation: isolate;
 }
+
+.motion-ripple-static { position: relative; }
 
 .ripple-effect {
   position: absolute;
   z-index: 2;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--ripple-rgb, 255, 255, 255), 0.34) 0%, rgba(var(--ripple-rgb, 255, 255, 255), 0) 70%);
+  background: radial-gradient(circle, rgba(var(--ripple-rgb, 255, 255, 255), 0.22) 0%, rgba(var(--ripple-rgb, 255, 255, 255), 0.07) 44%, rgba(var(--ripple-rgb, 255, 255, 255), 0) 72%);
   opacity: 0;
   pointer-events: none;
   transform: translateZ(0) scale(0);
-  animation: smooth-ripple 450ms var(--ease-out-smooth) forwards;
+  animation: motion-ripple 440ms var(--ease-out-smooth) forwards;
+}
+
+/* 输入、筛选与选中状态。 */
+:is(input, textarea, select) {
+  transition:
+    border-color var(--dur-fast) var(--ease-out-smooth),
+    box-shadow var(--dur-fast) var(--ease-out-smooth),
+    background-color var(--dur-fast) var(--ease-out-smooth);
+}
+
+:is(input, textarea, select):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--motion-ring), 0 0 0 5px var(--motion-focus-halo);
+}
+
+:is(.tab, .chip, .asset-button, .index-tile).active {
+  animation: motion-selection 260ms var(--ease-out-smooth) both;
+}
+
+.tab-underline { will-change: width, transform; }
+
+/* 可点击内容与卡片。 */
+:is(.card, .panel, .auth-card, .stock-hero, .crypto-stat) {
+  transition:
+    transform var(--dur-smooth) var(--ease-out-smooth),
+    box-shadow var(--dur-fast) var(--ease-out-smooth),
+    background-color var(--dur-fast) var(--ease-out-smooth),
+    border-color var(--dur-fast) var(--ease-out-smooth);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.card, .panel, .auth-card, .stock-hero, .crypto-stat):hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 0 var(--motion-glass-highlight), var(--motion-card-shadow);
+  }
+
+  :is(.suggest-item, .watch-item, .index-tile, .user-table tbody tr, .data-table tbody tr):hover {
+    transition: background-color var(--dur-fast) var(--ease-out-smooth), color var(--dur-fast) var(--ease-out-smooth);
+  }
+}
+
+/* 下拉和搜索建议不再依赖 display 瞬切。 */
+.search-menu .global-search,
+.search-suggest,
+.global-suggest {
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.985);
+  transform-origin: top center;
+  transition:
+    opacity var(--dur-fast) var(--ease-out-smooth),
+    transform var(--dur-fast) var(--ease-out-smooth),
+    visibility 0s var(--dur-fast);
+}
+
+.global-suggest {
+  max-height: 0 !important;
+  margin-top: 0;
+  padding-top: 0;
+  border-top-color: transparent;
+  overflow: hidden;
+}
+
+.search-menu.open .global-search,
+.search-suggest.open,
+.global-suggest.open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.search-menu.open .global-search,
+.search-suggest.open { animation: none; }
+
+.global-suggest.open {
+  max-height: min(420px, 60vh) !important;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top-color: inherit;
+  overflow-y: auto;
+}
+
+/* Dialog 开启与关闭，支持现代 Chromium 的离散 display/overlay 过渡。 */
+.app-dialog {
+  opacity: 0;
+  transform: translateY(12px) scale(0.975);
+  transition:
+    opacity var(--dur-page-out) var(--ease-out-smooth),
+    transform var(--dur-page-out) var(--ease-out-smooth),
+    display var(--dur-page-out) allow-discrete,
+    overlay var(--dur-page-out) allow-discrete;
+}
+
+.app-dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: none;
+}
+
+.app-dialog::backdrop {
+  background: rgba(28, 25, 23, 0);
+  transition:
+    background-color var(--dur-page-out) var(--ease-out-smooth),
+    display var(--dur-page-out) allow-discrete,
+    overlay var(--dur-page-out) allow-discrete;
+}
+
+.app-dialog[open]::backdrop { background: var(--motion-backdrop); }
+
+@starting-style {
+  .app-dialog[open] { opacity: 0; transform: translateY(12px) scale(0.975); }
+  .app-dialog[open]::backdrop { background: rgba(28, 25, 23, 0); }
+}
+
+/* 动态数据先显示，再做短促反馈。 */
+.motion-data-update {
+  animation: motion-data-in 220ms var(--ease-out-smooth) both;
 }
 
 .stagger-in > * {
-  animation: stagger-item-enter 380ms var(--ease-spring-soft) both;
+  animation: motion-item-in 260ms var(--ease-out-smooth) both;
 }
 
-.stagger-in > *:nth-child(1) { animation-delay: 20ms; }
-.stagger-in > *:nth-child(2) { animation-delay: 45ms; }
-.stagger-in > *:nth-child(3) { animation-delay: 70ms; }
-.stagger-in > *:nth-child(4) { animation-delay: 95ms; }
-.stagger-in > *:nth-child(5) { animation-delay: 120ms; }
-.stagger-in > *:nth-child(6) { animation-delay: 145ms; }
-.stagger-in > *:nth-child(n + 7) { animation-delay: 170ms; }
+.stagger-in > *:nth-child(1) { animation-delay: 12ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 28ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 44ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 60ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 76ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 92ms; }
+.stagger-in > *:nth-child(n + 7) { animation-delay: 108ms; }
 
 .smooth-ws-update,
 .ws-flash {
-  animation: smooth-glow 1.4s var(--ease-out-smooth) forwards;
+  animation: motion-live-update 900ms var(--ease-out-smooth) forwards;
+}
+
+.toast.show,
+.loading-dock.show {
+  animation: motion-toast-in 240ms var(--ease-out-smooth) both;
 }
 
 .skeleton {
   overflow: hidden;
-  background: linear-gradient(100deg, rgba(232, 226, 217, 0.72) 20%, rgba(255, 253, 249, 0.96) 42%, rgba(232, 226, 217, 0.72) 64%);
+  background: linear-gradient(100deg, var(--motion-skeleton-base) 20%, var(--motion-skeleton-shine) 42%, var(--motion-skeleton-base) 64%);
   background-size: 240% 100%;
   animation: motion-shimmer 1.35s var(--ease-out-smooth) infinite;
 }
 
-@keyframes smooth-exit {
-  from { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
-  to { opacity: 0; filter: blur(1px); transform: scale(0.99) translateY(-6px); }
+[aria-busy="true"] { cursor: progress; }
+
+@keyframes motion-page-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
 }
 
-@keyframes smooth-enter {
-  from { opacity: 0; filter: blur(2px); transform: scale(0.99) translateY(8px); }
-  to { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+@keyframes motion-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes smooth-ripple {
-  0% { opacity: 0.34; transform: translateZ(0) scale(0); }
-  72% { opacity: 0.1; }
-  100% { opacity: 0; transform: translateZ(0) scale(3.5); }
+@keyframes motion-scene-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
 }
 
-@keyframes stagger-item-enter {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes motion-scene-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes smooth-glow {
-  0% { background-color: var(--motion-flash); box-shadow: inset 0 0 0 1px rgba(217, 119, 87, 0.25); }
+@keyframes motion-shell-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes motion-shell-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes motion-ripple {
+  0% { opacity: 0.28; transform: translateZ(0) scale(0); }
+  68% { opacity: 0.08; }
+  100% { opacity: 0; transform: translateZ(0) scale(1.85); }
+}
+
+@keyframes motion-selection {
+  from { opacity: 0.72; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes motion-data-in {
+  from { opacity: 0.76; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes motion-item-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes motion-live-update {
+  0% { background-color: var(--motion-flash); box-shadow: inset 0 0 0 1px var(--motion-flash-edge); }
   100% { background-color: transparent; box-shadow: inset 0 0 0 1px transparent; }
+}
+
+@keyframes motion-toast-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes motion-shimmer {
@@ -145,17 +404,24 @@
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-new(root),
+  ::view-transition-old(app-content),
+  ::view-transition-new(app-content) {
     animation-duration: 1ms;
-    filter: none;
     transform: none;
   }
 
-  :is(button, .btn, a.button, .interactive-item, input, textarea, select, .card, .panel, .auth-card) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-delay: 0s !important;
     transition-duration: 1ms !important;
+  }
+
+  :is(.motion-scene-leave, .motion-scene-enter, .motion-data-update, .stagger-in > *, .smooth-ws-update, .ws-flash, .toast.show, .loading-dock.show, body.motion-ready *) {
+    animation: none !important;
     transform: none !important;
   }
 
   .ripple-effect { display: none; }
-  .stagger-in > *, .smooth-ws-update, .ws-flash, .skeleton { animation: none !important; }
+  .skeleton { animation: none !important; background: var(--motion-skeleton-base); }
 }

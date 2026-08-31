@@ -10,11 +10,39 @@
   --coral-active: #a9583e;
   --danger: #b5473f;
   --success: #48785d;
+  --topbar: rgba(250,249,245,.88);
+  --focus-ring: rgba(204,120,92,.14);
+  --danger-border: #e8c6c2;
+  --badge-admin: #f7e5dc;
+  --badge-disabled: #f8e5e3;
+  --toast-bg: #181715;
   --serif: Georgia, "Songti SC", "STSong", serif;
   --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --canvas: #090c11;
+    --surface: #11161d;
+    --card: rgba(18,22,29,.86);
+    --ink: #f4f6f8;
+    --body: #b4bbc5;
+    --muted: #7f8895;
+    --hairline: rgba(255,255,255,.1);
+    --coral: #df8466;
+    --coral-active: #f09a7d;
+    --danger: #ed9188;
+    --success: #70b495;
+    --topbar: rgba(9,12,17,.78);
+    --focus-ring: rgba(223,132,102,.18);
+    --danger-border: rgba(237,145,136,.28);
+    --badge-admin: rgba(223,132,102,.14);
+    --badge-disabled: rgba(237,145,136,.12);
+    --toast-bg: #161b23;
+  }
+}
 * { box-sizing: border-box; }
-html { max-width: 100%; overflow-x: clip; color-scheme: light; }
+html { max-width: 100%; overflow-x: clip; color-scheme: light dark; }
 body { min-width: 0; max-width: 100%; min-height: 100vh; margin: 0; overflow-x: clip; color: var(--ink); background: var(--canvas); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
@@ -39,12 +67,12 @@ a { color: inherit; }
 .field { display: grid; gap: 7px; margin-top: 17px; }
 .field span { color: var(--body); font-size: 13px; font-weight: 600; }
 .field input, .field select, .admin-form input, .admin-form select, .reset-form input { width: 100%; height: 44px; padding: 0 13px; color: var(--ink); background: var(--canvas); border: 1px solid var(--hairline); border-radius: 8px; outline: 0; transition: border-color var(--dur-instant) var(--ease-out-smooth), box-shadow var(--dur-fast) var(--ease-spring-soft); }
-.field input:focus, .field select:focus, .admin-form input:focus, .admin-form select:focus, .reset-form input:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(204,120,92,.14); }
+.field input:focus, .field select:focus, .admin-form input:focus, .admin-form select:focus, .reset-form input:focus { border-color: var(--coral); box-shadow: 0 0 0 3px var(--focus-ring); }
 .primary-button, .secondary-button, .danger-button, .text-button { min-height: 42px; padding: 0 17px; border-radius: 8px; font-size: 14px; font-weight: 600; }
 .primary-button { color: #fff; background: var(--coral); border: 1px solid var(--coral); }
 .primary-button:active { background: var(--coral-active); }
 .secondary-button { color: var(--ink); background: var(--canvas); border: 1px solid var(--hairline); }
-.danger-button { color: var(--danger); background: transparent; border: 1px solid #e8c6c2; }
+.danger-button { color: var(--danger); background: transparent; border: 1px solid var(--danger-border); }
 .text-button { min-height: 36px; padding: 0 10px; color: var(--body); background: transparent; border: 0; }
 .login-submit { width: 100%; margin-top: 24px; }
 .login-submit.loading::before { display: inline-block; width: 13px; height: 13px; margin-right: 8px; vertical-align: -2px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; content: ""; animation: spin .75s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
@@ -53,7 +81,7 @@ a { color: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .admin-page { min-height: 100vh; }
-.admin-topbar { position: sticky; top: 0; z-index: 10; display: flex; min-height: 76px; padding: 12px max(24px, calc((100vw - 1180px) / 2)); align-items: center; justify-content: space-between; background: rgba(250,249,245,.96); border-bottom: 1px solid var(--hairline); }
+.admin-topbar { position: sticky; top: 0; z-index: 10; display: flex; min-height: 76px; padding: 12px max(24px, calc((100vw - 1180px) / 2)); align-items: center; justify-content: space-between; background: var(--topbar); border-bottom: 1px solid var(--hairline); }
 .admin-actions { display: flex; align-items: center; gap: 8px; }
 .admin-actions span { color: var(--muted); font-size: 13px; }
 .admin-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 96px; }
@@ -77,8 +105,8 @@ a { color: inherit; }
 .user-name b { font-size: 14px; }
 .user-name small { color: var(--muted); }
 .badge { display: inline-flex; min-height: 24px; padding: 2px 9px; align-items: center; background: var(--surface); border-radius: 999px; font-size: 11px; }
-.badge.admin { color: var(--coral-active); background: #f7e5dc; }
-.badge.disabled { color: var(--danger); background: #f8e5e3; }
+.badge.admin { color: var(--coral-active); background: var(--badge-admin); }
+.badge.disabled { color: var(--danger); background: var(--badge-disabled); }
 .row-actions { display: flex; gap: 3px; }
 .row-actions button { min-height: 32px; padding: 0 8px; color: var(--body); background: transparent; border: 0; border-radius: 6px; font-size: 12px; }
 .row-actions button:hover { background: var(--surface); }
@@ -90,7 +118,7 @@ a { color: inherit; }
 .reset-form h2 { margin: 0; font: 400 26px/1.3 var(--serif); }
 .reset-form p { margin: -10px 0 0; color: var(--muted); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(420px, calc(100vw - 48px)); padding: 12px 16px; color: #fff; background: var(--ink); border-radius: 8px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-smooth), transform var(--dur-fast) var(--ease-spring-soft); }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(420px, calc(100vw - 48px)); padding: 12px 16px; color: #fff; background: var(--toast-bg); border-radius: 8px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out-smooth), transform var(--dur-fast) var(--ease-spring-soft); }
 .toast.show { opacity: 1; transform: none; }
 .toast.error { background: var(--danger); }
 

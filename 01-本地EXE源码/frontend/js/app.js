@@ -47,7 +47,9 @@ async function api(path, options = {}) {
     if (!["GET", "HEAD", "OPTIONS"].includes(method) && state.csrfToken) headers["X-CSRF-Token"] = state.csrfToken;
     const res = await fetch(API + path, { ...options, method, headers, credentials: "same-origin", signal: controller.signal });
     if (res.status === 401) {
-      location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+      const target = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
+      if (typeof window.motionNavigate === "function") window.motionNavigate(target, { replace: true });
+      else location.replace(target);
       throw new Error("登录已失效，请重新登录");
     }
     if (!res.ok) {
@@ -109,7 +111,6 @@ const state = {
   cryptoPriceTimer: null,
   cryptoPanel: "dashboard",
   tradingLoaded: false,
-  tradingToken: "",
   tradingSettings: {},
   tradingStatus: {},
   tradingSocket: null,
@@ -234,28 +235,25 @@ function switchTab(name) {
   tabs.forEach((t) => t.classList.toggle("active", name !== "crypto" && t.dataset.tab === name));
   tabsRoot.classList.toggle("crypto-mode", name === "crypto");
   document.body.classList.toggle("crypto-mode", name === "crypto");
-  if (name !== "crypto") $("tradeSafetyDock").hidden = true;
   $("marketFabLabel").textContent = name === "crypto" ? "A股" : "币圈";
   marketFab.setAttribute("aria-label", name === "crypto" ? "返回A股页面" : "切换到币圈看板");
   syncTabIndicator();
 
   const activate = () => {
     if (ticket !== navTicket) return;
-    document.querySelectorAll(".view").forEach((view) => view.classList.remove("active", "view-leave", "view-enter", "view-enter-active"));
-    nextView.classList.add("active", "view-enter");
+    document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+    nextView.classList.add("active");
     state.activeView = name;
     saveState({ last_page: name });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       if (ticket !== navTicket) return;
-      nextView.classList.add("view-enter-active");
-      setTimeout(() => nextView.classList.remove("view-enter", "view-enter-active"), reduceMotion.matches ? 20 : 280);
       [state.indexChart, state.stockChart, state.cryptoChart, state.ladderChart, state.indChart].forEach((chart) => chart?.resize());
-    }));
+    });
     if (name === "limitup" && !state.loaded.limitup) loadLimitup();
     if (name === "picks" && !state.loaded.picks) loadDailyPicks();
     if (name === "daily" && !state.loaded.daily) loadDaily();
     if (name === "crypto") {
-      if (state.cryptoPanel === "trading") { $("tradeSafetyDock").hidden = false; openTradingDesk(); }
+      if (state.cryptoPanel === "trading") openTradingDesk();
       else {
         connectCryptoStream();
         state.loaded.crypto ? scheduleCryptoRefresh() : loadCrypto();
@@ -263,7 +261,7 @@ function switchTab(name) {
     }
   };
 
-  if (typeof window.smoothRender === "function") window.smoothRender(nextView, activate);
+  if (typeof window.transitionViews === "function") window.transitionViews(currentView, nextView, activate, { native: false });
   else activate();
 }
 tabs.forEach((t) => t.addEventListener("click", () => switchTab(t.dataset.tab)));
@@ -274,37 +272,32 @@ window.addEventListener("resize", () => {
 });
 
 /* ---------- ECharts 主题 ---------- */
+const cssColor = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+function chartTheme() {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  return {
+    ink: cssColor("--text-primary", "#1c1917"),
+    dim: cssColor("--text-tertiary", "#78716c"),
+    border: cssColor("--border-strong", "#d4cdc2"),
+    grid: cssColor("--divider", "rgba(87,83,78,0.12)"),
+    accent: cssColor("--accent", "#d97757"),
+    surface: cssColor("--bg-card", "#ffffff"),
+    zoom: cssColor("--bg-muted", "rgba(243,239,232,0.92)"),
+    zoomFill: cssColor("--accent-soft", "rgba(217,119,87,0.16)"),
+    up: cssColor("--up", "#c4554a"),
+    down: cssColor("--down", "#3d8b6e"),
+    ma: [cssColor("--accent", "#d97757"), dark ? "#d7ad72" : "#9a7244", cssColor("--flat", "#78716c")],
+  };
+}
 function baseOption() {
+  const theme = chartTheme();
   return {
     backgroundColor: "transparent",
     animation: !reduceMotion.matches,
-    textStyle: { color: "#57534e", fontFamily: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" },
+    textStyle: { color: theme.dim, fontFamily: "Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" },
     grid: { left: 12, right: 16, top: 30, bottom: 8, containLabel: true },
   };
 }
-const RED = "#c4554a", GREEN = "#3d8b6e", GOLD = "#9a7244", DIM = "#78716c";
-const CHART = {
-  ink: "#1c1917",
-  dim: "#78716c",
-  border: "#d4cdc2",
-  grid: "rgba(87,83,78,0.12)",
-  accent: "#d97757",
-  surface: "#ffffff",
-  zoom: "rgba(243,239,232,0.92)",
-  zoomFill: "rgba(217,119,87,0.16)",
-  ma: ["#d97757", "#9a7244", "#78716c"],
-};
-const CLAUDE_CHART = {
-  ink: "#1c1917",
-  dim: "#78716c",
-  border: "#d4cdc2",
-  grid: "rgba(87, 83, 78, 0.12)",
-  accent: "#d97757",
-  surface: "#ffffff",
-  zoom: "rgba(243, 239, 232, 0.92)",
-  zoomFill: "rgba(217, 119, 87, 0.16)",
-  ma: ["#d97757", "#9a7244", "#78716c"],
-};
 
 /* ═══════════ 01 市场总览 ═══════════ */
 async function loadOverview() {
@@ -556,7 +549,7 @@ async function loadIndexChart(sym) {
 function renderKline(elId, k, name, mode) {
   const el = $(elId);
   const chart = state[mode + "Chart"] || (state[mode + "Chart"] = echarts.init(el));
-  const theme = mode === "index" ? CLAUDE_CHART : CHART;
+  const theme = chartTheme();
   const dates = k.map((x) => x.date);
   const ohlc = k.map((x) => [x.open, x.close, x.low, x.high]);
   const vols = k.map((x, i) => ({ value: x.volume, itemStyle: { color: x.close >= x.open ? "rgba(204,120,92,0.55)" : "rgba(59,135,120,0.48)" } }));
@@ -583,33 +576,33 @@ function renderKline(elId, k, name, mode) {
     animationEasing: "cubicOut",
     animationEasingUpdate: "cubicInOut",
     tooltip: {
-      trigger: "axis", axisPointer: { type: "cross", crossStyle: { color: theme.dim || DIM } },
+      trigger: "axis", axisPointer: { type: "cross", crossStyle: { color: theme.dim } },
       backgroundColor: theme.surface, borderColor: theme.border,
       textStyle: { color: theme.ink, fontFamily: "Consolas, monospace", fontSize: 12 },
     },
-    legend: { data: ["K线", "MA5", "MA10", "MA20", "成交量"], textStyle: { color: theme.dim || DIM, fontSize: 11 }, top: 0, right: 0 },
+    legend: { data: ["K线", "MA5", "MA10", "MA20", "成交量"], textStyle: { color: theme.dim, fontSize: 11 }, top: 0, right: 0 },
     axisPointer: { link: [{ xAxisIndex: "all" }] },
     grid: [
       { left: 10, right: 16, top: 30, height: mode === "stock" ? "58%" : "62%", containLabel: true },
       { left: 10, right: 16, top: mode === "stock" ? "76%" : "78%", height: "13%", containLabel: true },
     ],
     xAxis: [
-      { type: "category", data: dates, boundaryGap: true, axisLine: { lineStyle: { color: theme.border } }, axisLabel: { color: theme.dim || DIM, fontSize: 10 }, axisTick: { show: false } },
+      { type: "category", data: dates, boundaryGap: true, axisLine: { lineStyle: { color: theme.border } }, axisLabel: { color: theme.dim, fontSize: 10 }, axisTick: { show: false } },
       { type: "category", gridIndex: 1, data: dates, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: theme.border } } },
     ],
     yAxis: [
-      { scale: true, splitLine: { lineStyle: { color: theme.grid } }, axisLabel: { color: theme.dim || DIM, fontSize: 10 } },
+      { scale: true, splitLine: { lineStyle: { color: theme.grid } }, axisLabel: { color: theme.dim, fontSize: 10 } },
       { gridIndex: 1, splitNumber: 2, splitLine: { show: false }, axisLabel: { show: false } },
     ],
     dataZoom: [
       { type: "inside", xAxisIndex: [0, 1], start: startPct, end: 100 },
-      { type: "slider", xAxisIndex: [0, 1], bottom: 0, height: 16, borderColor: theme.border, backgroundColor: theme.zoom || "rgba(245,245,247,0.82)", fillerColor: theme.zoomFill || "rgba(0,113,227,0.16)", handleStyle: { color: theme.accent }, textStyle: { color: theme.dim || DIM, fontSize: 10 } },
+      { type: "slider", xAxisIndex: [0, 1], bottom: 0, height: 16, borderColor: theme.border, backgroundColor: theme.zoom, fillerColor: theme.zoomFill, handleStyle: { color: theme.accent }, textStyle: { color: theme.dim, fontSize: 10 } },
     ],
     series: [
       {
         name: "K线", type: "candlestick", data: ohlc,
         barWidth: "62%",                 // K线占类目宽度 62%，留出间隙便于分辨
-        itemStyle: { color: RED, color0: GREEN, borderColor: RED, borderColor0: GREEN },
+        itemStyle: { color: theme.up, color0: theme.down, borderColor: theme.up, borderColor0: theme.down },
       },
       ...["MA5", "MA10", "MA20"].map((ma, mi) => ({
         name: ma, type: "line", data: calcMA([5, 10, 20][mi]), smooth: true, symbol: "none",
@@ -1098,21 +1091,22 @@ $("limitDate").addEventListener("change", (event) => event.target.value && setLi
 function renderLadder(ladder) {
   const el = $("ladderChart");
   const chart = state.ladderChart || (state.ladderChart = echarts.init(el));
+  const theme = chartTheme();
   const levels = Object.keys(ladder).map(Number).filter((n) => n > 0);
   if (!levels.length) levels.push(1);
   const data = levels.map((l) => ladder[String(l)] ?? 0);
   chart.setOption({
     ...baseOption(),
-    tooltip: { trigger: "axis", backgroundColor: "#ffffff", borderColor: CHART.border, textStyle: { color: CHART.ink } },
-    xAxis: { type: "category", data: levels.map((l) => l + "板"), axisLine: { lineStyle: { color: CHART.border } }, axisLabel: { color: DIM, fontSize: 11 }, axisTick: { show: false } },
-    yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: CHART.grid } }, axisLabel: { color: DIM, fontSize: 10 } },
+    tooltip: { trigger: "axis", backgroundColor: theme.surface, borderColor: theme.border, textStyle: { color: theme.ink } },
+    xAxis: { type: "category", data: levels.map((l) => l + "板"), axisLine: { lineStyle: { color: theme.border } }, axisLabel: { color: theme.dim, fontSize: 11 }, axisTick: { show: false } },
+    yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: theme.grid } }, axisLabel: { color: theme.dim, fontSize: 10 } },
     series: [{
       type: "bar", data, barWidth: "46%",
       itemStyle: {
         borderRadius: [5, 5, 0, 0],
-        color: CHART.accent,
+        color: theme.accent,
       },
-      label: { show: true, position: "top", color: CHART.ink, fontFamily: "Consolas, monospace" },
+      label: { show: true, position: "top", color: theme.ink, fontFamily: "Consolas, monospace" },
     }],
   }, true);
 }
@@ -1120,20 +1114,21 @@ function renderLadder(ladder) {
 function renderIndChart(inds) {
   const el = $("indChart");
   const chart = state.indChart || (state.indChart = echarts.init(el));
+  const theme = chartTheme();
   const names = inds.map(([n]) => n).reverse();
   const vals = inds.map(([, v]) => v).reverse();
   chart.setOption({
     ...baseOption(),
-    tooltip: { trigger: "axis", backgroundColor: "#ffffff", borderColor: CHART.border, textStyle: { color: CHART.ink } },
-    xAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: CHART.grid } }, axisLabel: { color: DIM, fontSize: 10 } },
-    yAxis: { type: "category", data: names, axisLine: { lineStyle: { color: CHART.border } }, axisLabel: { color: DIM, fontSize: 11 }, axisTick: { show: false } },
+    tooltip: { trigger: "axis", backgroundColor: theme.surface, borderColor: theme.border, textStyle: { color: theme.ink } },
+    xAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: theme.grid } }, axisLabel: { color: theme.dim, fontSize: 10 } },
+    yAxis: { type: "category", data: names, axisLine: { lineStyle: { color: theme.border } }, axisLabel: { color: theme.dim, fontSize: 11 }, axisTick: { show: false } },
     series: [{
       type: "bar", data: vals, barWidth: "55%",
       itemStyle: {
         borderRadius: [0, 5, 5, 0],
-        color: CHART.accent,
+        color: theme.accent,
       },
-      label: { show: true, position: "right", color: CHART.ink, fontFamily: "Consolas, monospace" },
+      label: { show: true, position: "right", color: theme.ink, fontFamily: "Consolas, monospace" },
     }],
   }, true);
 }
@@ -1588,10 +1583,8 @@ document.querySelectorAll("#cryptoFrequency [data-seconds]").forEach((button) =>
   scheduleCryptoRefresh();
 }));
 
-/* ═══════════ Binance 模拟交易台 ═══════════ */
-const tradeHeaders = () => ({ "X-Trade-Token": state.tradingToken });
+/* ═══════════ Binance 只读查询 ═══════════ */
 const tradeNum = (value, digits = 2) => Number.isFinite(Number(value)) ? fmt.num(Number(value), digits) : "--";
-const tradeActionLabel = (value) => ({ BUY: "买入", SELL: "卖出", CLOSE: "平仓", HOLD: "观望" })[value] || value || "观望";
 const tradeOrderStatus = (value) => ({ New: "挂单中", Created: "已创建", Submitted: "已提交", PendingSubmit: "正在提交", SubmitUnknown: "结果待确认", Untriggered: "待触发", PartiallyFilled: "部分成交", Filled: "已成交", Cancelled: "已撤销", Rejected: "已拒绝", Deactivated: "已失效" })[value] || value || "未知";
 
 function setTradeStatus(id, text, stateClass = "") {
@@ -1603,57 +1596,16 @@ function setTradeStatus(id, text, stateClass = "") {
 
 function renderTradingStatus(data) {
   state.tradingStatus = data;
-  $("tradeEnvironment").textContent = data.environment || "Binance 交易环境";
-  $("tradeOrderEnv").textContent = data.testnet ? "Testnet" : "Mainnet";
-  $("tradeBanner").classList.toggle("mainnet", !data.testnet);
+  $("tradeEnvironment").textContent = data.environment || "Binance 只读查询";
   $("tradeSetup").hidden = Boolean(data.credentials_configured);
-  $("tradeUnlockBtn").hidden = data.testnet || data.mainnet_unlocked;
+  $("tradeMode").textContent = "只读查询";
+  $("tradeAccountMode").textContent = data.credentials_configured ? "已配置 · 只读" : "未配置";
   setTradeStatus("tradeApiStatus", `API ${data.api_status || "--"}`, data.api_status === "已连接" ? "ok" : data.api_status === "异常" ? "bad" : "");
   const ws = data.public_ws || "--";
   const wsLabel = ({ connected: "已连接", connecting: "连接中", reconnecting: "重连中", disconnected: "已断开" })[ws] || ws;
   const privateWs = data.private_ws;
   const privateLabel = ({ connected: "已连接", connecting: "连接中", reconnecting: "重连中", disconnected: "已断开" })[privateWs] || privateWs;
   setTradeStatus("tradeWsStatus", `WS 行情${wsLabel}${data.credentials_configured ? ` · 私有${privateLabel}` : ""}`, ws === "connected" && (!data.credentials_configured || privateWs === "connected") ? "ok" : ws === "disconnected" || privateWs === "disconnected" ? "bad" : "");
-  $("tradeStrategy").textContent = ({ ma_cross: "均线交叉", rsi_basic: "RSI 趋势", boll_break: "布林突破" })[data.strategy] || data.strategy || "--";
-  const signals = Object.entries(data.last_signal || {});
-  $("tradeSignal").textContent = signals.length ? signals.map(([symbol, signal]) => `${symbol} ${tradeActionLabel(signal.action)} · ${signal.reason || "无说明"}`).join(" ｜ ") : "等待已确认 K 线";
-  $("tradeAutoBtn").textContent = data.auto_trade ? "已开启" : "已关闭";
-  $("tradeAutoBtn").classList.toggle("active", Boolean(data.auto_trade));
-  $("tradeAutoDockBtn").textContent = data.auto_trade ? "自动交易已开启" : "自动交易已关闭";
-  renderTradeRisk(data.risk || {});
-}
-
-function renderTradeRisk(risk) {
-  $("tradeRiskState").textContent = risk.emergency_stopped ? "已熔断" : "正常";
-  $("tradeRiskState").className = `badge ${risk.emergency_stopped ? "warn" : "neutral"}`;
-  const rows = [
-    ["单笔仓位上限", `${tradeNum((risk.max_position_pct || 0) * 100, 0)}%`],
-    ["总仓位上限", `${tradeNum((risk.max_total_position_pct || 0) * 100, 0)}%`],
-    ["日亏损熔断", `${tradeNum((risk.max_daily_loss_pct || 0) * 100, 0)}%`],
-    ["最大杠杆", `${risk.max_leverage || "--"}x`],
-    ["硬止损", `${tradeNum((risk.hard_stop_loss_pct || 0) * 100, 1)}%`],
-  ];
-  if (risk.circuit_reason) rows.push(["熔断原因", risk.circuit_reason]);
-  renderHtml("tradeRiskList", rows.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(value)}</dd></div>`).join(""));
-  const form = $("tradeSettingsForm");
-  if (!form.contains(document.activeElement)) {
-    const settings = state.tradingSettings;
-    $("tradeSettingStrategy").value = settings.strategy || "ma_cross";
-    $("tradeSettingLeverage").value = settings.default_leverage || 3;
-    $("tradeSettingLeverage").max = settings.max_leverage || 5;
-    $("tradeSettingPosition").value = (settings.max_position_pct || .1) * 100;
-    $("tradeSettingTotalPosition").value = (settings.max_total_position_pct || .25) * 100;
-    $("tradeSettingDailyLoss").value = (settings.max_daily_loss_pct || .05) * 100;
-    $("tradeSettingLosses").value = settings.max_consecutive_losses || 3;
-    $("tradeSettingStopLoss").value = (settings.hard_stop_loss_pct || .02) * 100;
-    $("tradeSettingTakeProfit").value = (settings.take_profit_pct || .04) * 100;
-    $("tradeSettingMaFast").value = settings.ma_fast || 9;
-    $("tradeSettingMaSlow").value = settings.ma_slow || 21;
-    $("tradeSettingRsiBuy").value = settings.rsi_buy || 35;
-    $("tradeSettingRsiSell").value = settings.rsi_sell || 65;
-    $("tradeSettingBollWindow").value = settings.boll_window || 20;
-    $("tradeSettingBollStd").value = settings.boll_std || 2;
-  }
 }
 
 function renderTradeAccount(data) {
@@ -1674,20 +1626,16 @@ function renderTradePositions(data) {
   renderHtml("tradePositionsBody", rows.length ? rows.map((row) => `<tr>
     <td class="mono">${escapeHtml(row.symbol)}</td><td class="${row.side === "Buy" ? "up" : "down"}">${row.side === "Buy" ? "多" : "空"}</td>
     <td class="mono">${escapeHtml(row.size)}</td><td class="mono">${tradeNum(row.avgPrice)}</td><td class="mono">${tradeNum(row.markPrice)}</td>
-    <td class="mono ${pctClass(Number(row.unrealisedPnl || 0))}">${tradeNum(row.unrealisedPnl)}</td><td><button class="table-action" data-close-position="${escapeHtml(row.symbol)}">平仓</button></td>
-  </tr>`).join("") : '<tr><td colspan="7" class="muted">当前没有持仓</td></tr>', () => {
-    document.querySelectorAll("[data-close-position]").forEach((button) => button.addEventListener("click", () => closeTradePosition(button.dataset.closePosition)));
-  });
+    <td class="mono ${pctClass(Number(row.unrealisedPnl || 0))}">${tradeNum(row.unrealisedPnl)}</td>
+  </tr>`).join("") : '<tr><td colspan="6" class="muted">当前没有持仓</td></tr>');
   pulseData("tradePositionsBody");
 }
 
 function renderTradeHistory(data, kind = state.tradingHistory) {
   const rows = data.items || [];
   if (kind === "orders") {
-    renderHtml("tradeHistoryHead", "<tr><th>时间</th><th>交易对</th><th>方向</th><th>类型</th><th>数量</th><th>价格</th><th>状态</th><th></th></tr>");
-    renderHtml("tradeHistoryBody", rows.length ? rows.map((row) => `<tr><td>${escapeHtml(String(row.updated_at || "").slice(0, 19).replace("T", " "))}</td><td class="mono">${escapeHtml(row.symbol)}</td><td>${row.side === "Buy" ? "买入" : "卖出"}</td><td>${row.order_type === "Market" ? "市价" : row.order_type === "Limit" ? "限价" : escapeHtml(row.order_type)}</td><td class="mono">${tradeNum(row.qty, 4)}</td><td class="mono">${tradeNum(row.price)}</td><td>${escapeHtml(tradeOrderStatus(row.status))}</td><td>${/New|Created|Submitted|Untriggered|PartiallyFilled/i.test(row.status || "") && row.order_id ? `<button class="table-action" data-cancel-order="${escapeHtml(row.order_id)}" data-symbol="${escapeHtml(row.symbol)}">撤单</button>` : ""}</td></tr>`).join("") : '<tr><td colspan="8" class="muted">暂无当前挂单</td></tr>', () => {
-      document.querySelectorAll("[data-cancel-order]").forEach((button) => button.addEventListener("click", () => cancelTradeOrder(button.dataset.symbol, button.dataset.cancelOrder)));
-    });
+    renderHtml("tradeHistoryHead", "<tr><th>时间</th><th>交易对</th><th>方向</th><th>类型</th><th>数量</th><th>价格</th><th>状态</th></tr>");
+    renderHtml("tradeHistoryBody", rows.length ? rows.map((row) => `<tr><td>${escapeHtml(String(row.updated_at || "").slice(0, 19).replace("T", " "))}</td><td class="mono">${escapeHtml(row.symbol)}</td><td>${row.side === "Buy" ? "买入" : "卖出"}</td><td>${row.order_type === "Market" ? "市价" : row.order_type === "Limit" ? "限价" : escapeHtml(row.order_type)}</td><td class="mono">${tradeNum(row.qty, 4)}</td><td class="mono">${tradeNum(row.price)}</td><td>${escapeHtml(tradeOrderStatus(row.status))}</td></tr>`).join("") : '<tr><td colspan="7" class="muted">暂无当前挂单</td></tr>');
   } else {
     renderHtml("tradeHistoryHead", "<tr><th>时间</th><th>交易对</th><th>方向</th><th>数量</th><th>成交价</th><th>手续费</th><th>已实现盈亏</th></tr>");
     renderHtml("tradeHistoryBody", rows.length ? rows.map((row) => `<tr><td>${escapeHtml(String(row.executed_at || "").slice(0, 19).replace("T", " "))}</td><td class="mono">${escapeHtml(row.symbol)}</td><td>${row.side === "Buy" ? "买入" : "卖出"}</td><td class="mono">${tradeNum(row.qty, 4)}</td><td class="mono">${tradeNum(row.price)}</td><td class="mono">${tradeNum(row.fee, 4)}</td><td class="mono ${pctClass(Number(row.closed_pnl || 0))}">${tradeNum(row.closed_pnl)}</td></tr>`).join("") : '<tr><td colspan="7" class="muted">暂无成交记录</td></tr>');
@@ -1703,16 +1651,14 @@ function renderTradeLogs(data) {
 
 async function tradingBootstrap() {
   const data = await api("/api/trading/bootstrap");
-  state.tradingToken = data.write_token;
   state.tradingSettings = data.settings || {};
-  renderTradeRisk(data.settings || {});
   return data;
 }
 
 const tradeHistoryPath = () => state.tradingHistory === "orders" ? "/api/trading/orders?open_only=true" : "/api/trading/trades?today=true";
 
 async function loadTradingDesk() {
-  if (!state.tradingToken) await tradingBootstrap();
+  if (!Object.keys(state.tradingSettings).length) await tradingBootstrap();
   const accountTask = state.tradingSettings.credentials_configured
     ? api("/api/trading/account").then((data) => { renderTradeAccount(data); renderTradePositions(data); }).catch((error) => toast("账户读取失败：" + error.message, true))
     : api("/api/trading/positions").then(renderTradePositions);
@@ -1721,7 +1667,6 @@ async function loadTradingDesk() {
     accountTask,
     api(tradeHistoryPath()).then((data) => renderTradeHistory(data)),
     api("/api/trading/logs?limit=80").then(renderTradeLogs),
-    api("/api/trading/risk").then(renderTradeRisk),
   ];
   await Promise.allSettled(tasks);
   state.tradingLoaded = true;
@@ -1770,7 +1715,9 @@ function connectTradingStream() {
 
 function switchCryptoPanel(name) {
   if (state.cryptoPanel === name) return;
+  const previousPanel = state.cryptoPanel;
   state.cryptoPanel = name;
+  const currentPanel = $(previousPanel === "dashboard" ? "cryptoDashboardPanel" : "tradingPanel");
   const targetPanel = $(name === "dashboard" ? "cryptoDashboardPanel" : "tradingPanel");
   const updatePanels = () => ["dashboard", "trading"].forEach((panelName) => {
     const panel = $(panelName === "dashboard" ? "cryptoDashboardPanel" : "tradingPanel");
@@ -1778,13 +1725,12 @@ function switchCryptoPanel(name) {
     panel.hidden = !active;
     panel.classList.toggle("active", active);
   });
-  if (typeof window.smoothRender === "function") window.smoothRender(targetPanel, updatePanels);
+  if (typeof window.transitionViews === "function") window.transitionViews(currentPanel, targetPanel, updatePanels, { native: false });
   else updatePanels();
   $("cryptoDashboardTab").classList.toggle("active", name === "dashboard");
   $("tradingDeskTab").classList.toggle("active", name === "trading");
   $("cryptoDashboardTab").setAttribute("aria-selected", String(name === "dashboard"));
   $("tradingDeskTab").setAttribute("aria-selected", String(name === "trading"));
-  $("tradeSafetyDock").hidden = name !== "trading" || state.activeView !== "crypto";
   if (name === "trading") { disconnectCryptoStream("交易台已接管实时连接"); openTradingDesk(); }
   else { disconnectTradingStream(); connectCryptoStream(); scheduleCryptoRefresh(); setTimeout(() => state.cryptoChart?.resize(), 20); }
 }
@@ -1794,104 +1740,8 @@ function openTradingDesk() {
   connectTradingStream();
 }
 
-function confirmTrade(title, text, phrase = "") {
-  return new Promise((resolve) => {
-    const dialog = $("tradeConfirmDialog");
-    $("tradeConfirmTitle").textContent = title;
-    $("tradeConfirmText").textContent = text;
-    $("tradePhraseWrap").hidden = !phrase;
-    $("tradeConfirmPhrase").value = "";
-    $("tradeConfirmPhrase").placeholder = phrase;
-    const done = () => { dialog.removeEventListener("close", done); resolve(dialog.returnValue === "confirm" && (!phrase || $("tradeConfirmPhrase").value.trim() === phrase)); };
-    dialog.addEventListener("close", done);
-    dialog.showModal();
-  });
-}
-
-async function tradeWrite(path, body) {
-  const result = await api(path, { method: "POST", headers: tradeHeaders(), body: JSON.stringify(body) });
-  await loadTradingDesk();
-  return result;
-}
-
-async function closeTradePosition(symbol) {
-  const mainnet = !state.tradingStatus.testnet;
-  const phrase = mainnet ? "确认主网实盘下单" : "";
-  const environment = state.tradingStatus.testnet ? "Testnet 模拟盘" : "Mainnet 实盘";
-  if (!await confirmTrade(`确认 ${environment} 平仓`, `将以市价平掉 ${symbol} 当前仓位。`, phrase)) return;
-  try { await tradeWrite("/api/trading/positions/close", { symbol, mainnet_phrase: phrase }); toast(`${symbol} 平仓请求已提交`); } catch (error) { toast("平仓失败：" + error.message, true); }
-}
-
-async function cancelTradeOrder(symbol, orderId) {
-  const environment = state.tradingStatus.testnet ? "Testnet 模拟盘" : "Mainnet 实盘";
-  if (!await confirmTrade(`确认 ${environment} 撤单`, `撤销 ${symbol} 订单 ${orderId}。`)) return;
-  try { await tradeWrite("/api/trading/orders/cancel", { symbol, order_id: orderId }); toast("撤单请求已提交"); } catch (error) { toast("撤单失败：" + error.message, true); }
-}
-
 $("cryptoDashboardTab").addEventListener("click", () => switchCryptoPanel("dashboard"));
 $("tradingDeskTab").addEventListener("click", () => switchCryptoPanel("trading"));
-$("tradeOrderType").addEventListener("change", () => $("tradePriceLabel").hidden = $("tradeOrderType").value !== "Limit");
-$("tradeOrderForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const body = {
-    symbol: $("tradeSymbol").value, side: $("tradeSide").value, order_type: $("tradeOrderType").value,
-    qty: Number($("tradeQty").value), price: Number($("tradePrice").value) || null,
-    stop_loss: Number($("tradeStopLoss").value) || null, take_profit: Number($("tradeTakeProfit").value) || null,
-    mainnet_phrase: state.tradingStatus.testnet ? "" : "确认主网实盘下单",
-  };
-  if (body.order_type === "Limit" && !body.price) { toast("限价单必须填写价格", true); return; }
-  const phrase = state.tradingStatus.testnet ? "" : "确认主网实盘下单";
-  const environment = state.tradingStatus.testnet ? "Testnet 模拟盘" : "Mainnet 实盘";
-  if (!await confirmTrade(`确认提交 ${environment} 委托`, `${body.symbol} · ${body.side === "Buy" ? "买入" : "卖出"} · ${body.order_type === "Market" ? "市价" : `限价 ${body.price}`} · 数量 ${body.qty}`, phrase)) return;
-  try { await tradeWrite("/api/trading/orders", body); toast("委托已提交"); } catch (error) { toast("委托失败：" + error.message, true); }
-});
-async function toggleAutoTrade() {
-  const enabled = !state.tradingStatus.auto_trade;
-  if (enabled && !await confirmTrade("开启自动交易", "策略信号将通过统一风控后自动提交真实 Testnet/主网订单。")) return;
-  try { await tradeWrite("/api/trading/auto", { enabled }); toast(enabled ? "自动交易已开启" : "自动交易已关闭"); } catch (error) { toast("切换失败：" + error.message, true); }
-}
-$("tradeAutoBtn").addEventListener("click", toggleAutoTrade);
-$("tradeAutoDockBtn").addEventListener("click", toggleAutoTrade);
-$("tradeSettingsForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const changes = {
-    strategy: $("tradeSettingStrategy").value,
-    default_leverage: Number($("tradeSettingLeverage").value),
-    max_position_pct: Number($("tradeSettingPosition").value) / 100,
-    max_total_position_pct: Number($("tradeSettingTotalPosition").value) / 100,
-    max_daily_loss_pct: Number($("tradeSettingDailyLoss").value) / 100,
-    max_consecutive_losses: Number($("tradeSettingLosses").value),
-    hard_stop_loss_pct: Number($("tradeSettingStopLoss").value) / 100,
-    take_profit_pct: Number($("tradeSettingTakeProfit").value) / 100,
-    ma_fast: Number($("tradeSettingMaFast").value),
-    ma_slow: Number($("tradeSettingMaSlow").value),
-    rsi_buy: Number($("tradeSettingRsiBuy").value),
-    rsi_sell: Number($("tradeSettingRsiSell").value),
-    boll_window: Number($("tradeSettingBollWindow").value),
-    boll_std: Number($("tradeSettingBollStd").value),
-  };
-  try {
-    state.tradingSettings = await api("/api/trading/settings", { method: "PATCH", headers: tradeHeaders(), body: JSON.stringify(changes) });
-    renderTradeRisk(state.tradingSettings);
-    await loadTradingDesk();
-    toast("策略与风控参数已热更新");
-  } catch (error) { toast("参数保存失败：" + error.message, true); }
-});
-$("tradeUnlockBtn").addEventListener("click", async () => {
-  const phrase = "我确认使用Binance主网实盘";
-  if (!await confirmTrade("解锁 Mainnet 实盘", "本次应用会话将允许主网交易，重启后自动失效。", phrase)) return;
-  try { await tradeWrite("/api/trading/mainnet/unlock", { phrase }); toast("Mainnet 已在本次会话解锁"); } catch (error) { toast("解锁失败：" + error.message, true); }
-});
-async function emergencyTrade(closePositions) {
-  if (!await confirmTrade("再次确认紧急操作", closePositions ? "将立即关闭自动交易、撤销挂单，并市价平掉全部仓位。" : "将立即关闭自动交易并撤销全部挂单。")) return;
-  try {
-    const result = await tradeWrite("/api/trading/emergency-stop", { close_positions: closePositions });
-    toast(result.errors?.length ? `已停止开仓，但部分操作失败：${result.errors.join("；")}` : "紧急停止已执行", Boolean(result.errors?.length));
-  } catch (error) { toast("紧急停止失败：" + error.message, true); }
-}
-$("tradeEmergencyBtn").addEventListener("click", () => emergencyTrade(false));
-$("tradeEmergencyDockBtn").addEventListener("click", () => emergencyTrade(false));
-$("tradeEmergencyCloseBtn").addEventListener("click", () => emergencyTrade(true));
 $("tradeRefreshBtn").addEventListener("click", () => loadTradingDesk());
 document.querySelectorAll("[data-trade-table]").forEach((button) => button.addEventListener("click", () => {
   state.tradingHistory = button.dataset.tradeTable;
@@ -1929,7 +1779,11 @@ $("aboutBtn").addEventListener("click", async () => {
 });
 $("welcomeDone").addEventListener("click", () => saveState({ welcomed: true }));
 $("logoutBtn").addEventListener("click", async () => {
-  try { await api("/api/auth/logout", { method: "POST" }); } finally { location.replace("/login"); }
+  try { await api("/api/auth/logout", { method: "POST" }); }
+  finally {
+    if (typeof window.motionNavigate === "function") window.motionNavigate("/login", { replace: true });
+    else location.replace("/login");
+  }
 });
 
 async function bootstrap() {

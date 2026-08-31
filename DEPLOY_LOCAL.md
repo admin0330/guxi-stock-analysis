@@ -40,7 +40,7 @@ python -m backend.auth create-admin admin
 
 命令会交互式读取密码，不会把密码写入命令历史。完整变量、YAML 配置和优先级见 [CONFIGURATION.md](CONFIGURATION.md)。
 
-交易模块默认是 Binance Futures Testnet，自动交易和 Mainnet 均关闭。只有在本机确认风险、填写 Testnet 凭据并完成测试后，才使用交易功能；不要把任何密钥写入源码、配置模板或 Git 历史。
+Binance 模块仅用于只读行情、账户、余额、持仓、挂单和成交查询；不会提供下单、撤单、改单、平仓、转账或自动交易。建议使用已在 Binance 后台关闭交易、提现和转账权限的 API Key；不要把任何密钥写入源码、配置模板或 Git 历史。
 
 ## 4. Windows 便携版
 
@@ -85,4 +85,4 @@ node tests/browser_smoke.js
 
 ## 8. 安全边界
 
-以下内容永远不应进入提交：`.env`、API Key/Secret、Telegram Token、管理员密码、私钥、数据库、缓存、日志、用户状态和 EXE 构建目录。若凭据曾经出现在本机配置或日志中，应先撤销并重新生成，再继续使用。
+以下内容永远不应进入提交：`.env`、API Key/Secret、管理员密码、私钥、数据库、缓存、日志、用户状态和 EXE 构建目录。若凭据曾经出现在本机配置或日志中，应先撤销并重新生成，再继续使用。

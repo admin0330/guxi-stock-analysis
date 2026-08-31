@@ -17,7 +17,12 @@ async function api(path, options = {}) {
   const headers = { ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) };
   if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrfToken) headers["X-CSRF-Token"] = csrfToken;
   const response = await fetch(path, { ...options, method, headers, credentials: "same-origin" });
-  if (response.status === 401) { location.replace(`/login?next=${encodeURIComponent(location.pathname)}`); throw new Error("登录已失效"); }
+  if (response.status === 401) {
+    const target = `/login?next=${encodeURIComponent(location.pathname)}`;
+    if (typeof window.motionNavigate === "function") window.motionNavigate(target, { replace: true });
+    else location.replace(target);
+    throw new Error("登录已失效");
+  }
   const data = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data?.detail || "操作失败，请稍后重试");
   return data;
@@ -107,7 +112,11 @@ document.getElementById("resetForm").addEventListener("submit", async (event) =>
 });
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
-  try { await api("/api/auth/logout", { method: "POST" }); } finally { location.replace("/login"); }
+  try { await api("/api/auth/logout", { method: "POST" }); }
+  finally {
+    if (typeof window.motionNavigate === "function") window.motionNavigate("/login", { replace: true });
+    else location.replace("/login");
+  }
 });
 
 (async () => {
@@ -115,7 +124,11 @@ document.getElementById("logoutButton").addEventListener("click", async () => {
     const me = await api("/api/auth/me");
     csrfToken = me.csrf_token;
     currentUser = me.user;
-    if (currentUser.role !== "admin") { location.replace("/"); return; }
+    if (currentUser.role !== "admin") {
+      if (typeof window.motionNavigate === "function") window.motionNavigate("/", { replace: true });
+      else location.replace("/");
+      return;
+    }
     document.getElementById("currentUser").textContent = `${currentUser.username} · 管理员`;
     await loadUsers();
   } catch (error) { toast(error.message, true); }

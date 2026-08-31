@@ -34,9 +34,11 @@ const { chromium } = require("playwright");
   await page.waitForFunction(() => document.querySelector("#tradeEnvironment")?.textContent.includes("Testnet"));
   await page.waitForFunction(() => document.querySelector("#tradeBtcPrice")?.textContent !== "--");
   if (await page.locator("#tradeSetup").isHidden()) throw new Error("无密钥时未显示本地配置说明");
-  if (await page.locator("#tradeSafetyDock").isHidden()) throw new Error("交易安全快捷操作不可见");
   const tradingBootstrap = await page.evaluate(() => fetch("/api/trading/bootstrap").then((r) => r.json()));
-  if (!tradingBootstrap.write_token || JSON.stringify(tradingBootstrap).match(/api_secret|api_key/i)) throw new Error("交易会话令牌或密钥隔离不正确");
+  if (!tradingBootstrap.read_only || tradingBootstrap.write_token || JSON.stringify(tradingBootstrap).match(/api_secret|api_key/i)) throw new Error("Binance 只读查询边界不正确");
+  for (const selector of ["#tradeOrderForm", "#tradeAutoBtn", "#tradeSettingsForm", "#tradeUnlockBtn", "#tradeEmergencyBtn", "#tradeEmergencyCloseBtn", "#tradeSafetyDock"]) {
+    if (await page.locator(selector).count()) throw new Error("页面仍存在交易写入口：" + selector);
+  }
   await page.waitForTimeout(800);
   await page.screenshot({ path: "build/browser-trading.png", fullPage: true });
   await page.click("#cryptoDashboardTab");

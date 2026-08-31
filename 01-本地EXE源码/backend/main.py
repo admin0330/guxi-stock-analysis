@@ -65,7 +65,7 @@ def _security_headers(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:"
     if config.SESSION_COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=15552000; includeSubDomains"
     return response
@@ -83,7 +83,7 @@ async def authenticate_request(request: Request, call_next):
     session = auth_store.session(token) if config.AUTH_ENABLED else None
     request.state.auth_session = session
     if path == "/login" and session:
-        return _security_headers(RedirectResponse("/", status_code=303))
+        return _security_headers(RedirectResponse("/stock", status_code=303))
     public = path == "/login" or path == "/api/auth/login" or path == "/api/health" or path.startswith("/static/")
     if path in {"/static/index.html", "/static/admin.html"}:
         public = False
@@ -156,6 +156,13 @@ def index():
     if idx.exists():
         return FileResponse(str(idx))
     return {"app": config.APP_TITLE, "version": config.APP_VERSION, "docs": "/docs"}
+
+
+@app.get("/stock")
+def stock_page():
+    """业务入口别名；供服务入口页与移动端直接打开。"""
+    page = FRONTEND / "index.html"
+    return FileResponse(str(page)) if page.exists() else HTMLResponse("<h1>业务页面缺失</h1>", status_code=500)
 
 
 @app.get("/login")

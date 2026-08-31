@@ -1,11 +1,10 @@
-"""Binance USDⓈ-M Futures REST 封装；交易写操作只在这里发生。"""
+"""Binance USDⓈ-M Futures REST 封装；账户与行情查询专用。"""
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import hmac
 import time
-from decimal import Decimal, ROUND_DOWN
 from typing import Any
 from urllib.parse import urlencode
 
@@ -24,6 +23,10 @@ class CredentialsMissing(ExchangeError):
     pass
 
 
+class ReadOnlyModeError(ExchangeError):
+    """任何可能改变 Binance 状态的请求都会被拒绝。"""
+
+
 class BinanceExchange:
     def __init__(self, settings: TradingSettings) -> None:
         self.settings = settings
@@ -35,7 +38,6 @@ class BinanceExchange:
             self.http.headers["X-MBX-APIKEY"] = settings.api_key
         # ponytail: 单会话串行签名请求；出现真实吞吐瓶颈时再拆连接池。
         self._http_lock = asyncio.Lock()
-        self._instruments: dict[str, dict] = {}
         self._time_offset_ms = 0
         self.api_status = "未配置" if not settings.credentials_configured else "待连接"
         self.last_error = ""
@@ -66,6 +68,8 @@ class BinanceExchange:
         raise ExchangeError(message, code)
 
     async def _call(self, method: str, path: str, *, params: dict | None = None, private: bool = True, retries: int = 0) -> Any:
+        if method.upper() != "GET" and path != "/fapi/v1/listenKey":
+            raise ReadOnlyModeError("当前 Binance 连接为只读查询模式，不支持交易写操作")
         last: Exception | None = None
         for attempt in range(retries + 1):
             try:
@@ -137,32 +141,6 @@ class BinanceExchange:
         rows = await self._call("GET", "/fapi/v1/klines", private=False, retries=1, params={"symbol": symbol, "interval": interval, "limit": limit})
         return [{"time": int(row[0]), "open": float(row[1]), "high": float(row[2]), "low": float(row[3]), "close": float(row[4]), "volume": float(row[5]), "turnover": float(row[7]), "confirm": True} for row in rows]
 
-    async def instrument(self, symbol: str) -> dict:
-        if symbol in self._instruments:
-            return self._instruments[symbol]
-        payload = await self._call("GET", "/fapi/v1/exchangeInfo", private=False, retries=1)
-        row = next((item for item in payload.get("symbols", []) if item.get("symbol") == symbol), None)
-        if not row:
-            raise ExchangeError(f"未找到交易对 {symbol} 的规则")
-        filters = {item["filterType"]: item for item in row.get("filters", [])}
-        row["lotSizeFilter"] = {"qtyStep": filters.get("LOT_SIZE", {}).get("stepSize", "0.001"), "minOrderQty": filters.get("LOT_SIZE", {}).get("minQty", "0.001")}
-        row["priceFilter"] = {"tickSize": filters.get("PRICE_FILTER", {}).get("tickSize", "0.01")}
-        row["lotSizeFilter"]["minNotionalValue"] = filters.get("MIN_NOTIONAL", {}).get("notional", "5")
-        self._instruments[symbol] = row
-        return row
-
-    async def normalize_order(self, symbol: str, qty: float, price: float | None = None) -> tuple[str, str | None]:
-        info = await self.instrument(symbol)
-        step = Decimal(str(info["lotSizeFilter"]["qtyStep"])); minimum = Decimal(str(info["lotSizeFilter"]["minOrderQty"]))
-        normalized_qty = (Decimal(str(qty)) / step).to_integral_value(rounding=ROUND_DOWN) * step
-        if normalized_qty < minimum:
-            raise ExchangeError(f"下单数量低于最小值 {minimum}")
-        normalized_price = None
-        if price is not None:
-            tick = Decimal(str(info["priceFilter"]["tickSize"]))
-            normalized_price = (Decimal(str(price)) / tick).to_integral_value(rounding=ROUND_DOWN) * tick
-        return format(normalized_qty, "f"), format(normalized_price, "f") if normalized_price is not None else None
-
     async def wallet(self) -> dict:
         account = await self._call("GET", "/fapi/v2/account", retries=1)
         stable = [row for row in account.get("assets", []) if row.get("asset") in {"USDT", "USDC", "FDUSD", "BNFCR"}]
@@ -201,78 +179,6 @@ class BinanceExchange:
             rows = await self._call("GET", "/fapi/v1/userTrades", params={"symbol": symbol, "limit": max(1, min(100, limit))}, retries=1)
             result.extend({**row, "execId": str(row.get("id") or ""), "orderId": str(row.get("orderId") or ""), "side": "Buy" if row.get("buyer") else "Sell", "execQty": row.get("qty") or 0, "execPrice": row.get("price") or 0, "execFee": row.get("commission") or 0, "closedPnl": row.get("realizedPnl") or 0, "execTime": row.get("time") or 0} for row in rows)
         return result
-
-    async def set_leverage(self, symbol: str, leverage: int) -> None:
-        await self._call("POST", "/fapi/v1/leverage", params={"symbol": symbol, "leverage": leverage})
-
-    async def place_order(self, *, symbol: str, side: str, order_type: str, qty: float, order_link_id: str, price: float | None = None, reduce_only: bool = False, take_profit: float | None = None, stop_loss: float | None = None) -> dict:
-        qty_text, price_text = await self.normalize_order(symbol, qty, price)
-        params: dict[str, Any] = {"symbol": symbol, "side": side.upper(), "type": order_type.upper(), "quantity": qty_text, "newClientOrderId": order_link_id}
-        if reduce_only:
-            params["reduceOnly"] = "true"
-        if order_type.lower() == "limit":
-            params.update(price=price_text, timeInForce="GTC")
-        order = self._order(await self._call("POST", "/fapi/v1/order", params=params))
-        if not reduce_only:
-            close_side = "SELL" if side.lower() == "buy" else "BUY"
-            try:
-                for kind, trigger, suffix in (("STOP_MARKET", stop_loss, "sl"), ("TAKE_PROFIT_MARKET", take_profit, "tp")):
-                    if trigger:
-                        _, trigger_text = await self.normalize_order(symbol, qty, trigger)
-                        await self._call("POST", "/fapi/v1/order", params={"symbol": symbol, "side": close_side, "type": kind, "stopPrice": trigger_text, "closePosition": "true", "workingType": "MARK_PRICE", "newClientOrderId": f"{order_link_id[:31]}-{suffix}"})
-            except Exception as exc:
-                try:
-                    if order_type.lower() == "limit":
-                        await self._call("DELETE", "/fapi/v1/order", params={"symbol": symbol, "orderId": order["orderId"]})
-                    else:
-                        await self._call("POST", "/fapi/v1/order", params={"symbol": symbol, "side": close_side, "type": "MARKET", "quantity": qty_text, "reduceOnly": "true"})
-                except Exception as cleanup:
-                    raise ExchangeError(f"保护单提交失败且应急回退失败：{cleanup}") from exc
-                raise ExchangeError("保护单提交失败，入场订单已安全回退") from exc
-        return order
-
-    async def cancel_order(self, symbol: str, order_id: str = "", order_link_id: str = "") -> dict:
-        if not order_id and not order_link_id:
-            raise ExchangeError("撤单需要 orderId 或 orderLinkId")
-        row = await self._call("DELETE", "/fapi/v1/order", params={"symbol": symbol, "orderId": order_id or None, "origClientOrderId": order_link_id or None})
-        return self._order(row)
-
-    async def amend_order(self, symbol: str, *, order_id: str = "", order_link_id: str = "", qty: float | None = None, price: float | None = None) -> dict:
-        if not order_id and not order_link_id:
-            raise ExchangeError("改单需要 orderId 或 orderLinkId")
-        if qty is None and price is None:
-            raise ExchangeError("改单至少需要新数量或新价格")
-        current = await self._call("GET", "/fapi/v1/order", params={"symbol": symbol, "orderId": order_id or None, "origClientOrderId": order_link_id or None})
-        qty_text, price_text = await self.normalize_order(symbol, qty if qty is not None else float(current["origQty"]), price if price is not None else float(current["price"]))
-        row = await self._call("PUT", "/fapi/v1/order", params={"symbol": symbol, "side": current["side"], "quantity": qty_text, "price": price_text, "orderId": order_id or None, "origClientOrderId": order_link_id or None})
-        return self._order(row)
-
-    async def cancel_all(self) -> list[dict]:
-        results = []
-        for symbol in self.settings.symbols:
-            try:
-                payload = await self._call("DELETE", "/fapi/v1/allOpenOrders", params={"symbol": symbol})
-                results.append({"symbol": symbol, **payload})
-            except Exception as exc:
-                results.append({"symbol": symbol, "error": str(exc)})
-        return results
-
-    async def close_position(self, symbol: str) -> dict | None:
-        position = next((row for row in await self.positions(symbol) if float(row.get("size") or 0) > 0), None)
-        if not position:
-            return None
-        return await self.place_order(symbol=symbol, side="Sell" if position["side"] == "Buy" else "Buy", order_type="Market", qty=float(position["size"]), reduce_only=True, order_link_id=f"guxi-close-{symbol.lower()}-{int(time.time() * 1000)}")
-
-    async def close_all_positions(self) -> list[dict]:
-        results = []
-        for symbol in self.settings.symbols:
-            try:
-                result = await self.close_position(symbol)
-                if result:
-                    results.append(result)
-            except Exception as exc:
-                results.append({"symbol": symbol, "error": str(exc)})
-        return results
 
     async def create_listen_key(self) -> str:
         self.require_credentials()

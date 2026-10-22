@@ -10,7 +10,6 @@ import threading
 import time
 import urllib.request
 import webbrowser
-from pathlib import Path
 
 import uvicorn
 from PIL import Image, ImageDraw

@@ -16,7 +16,7 @@ _WRITE_LOCK = threading.Lock()
 
 def _safe_key(key: str) -> str:
     """把任意 key 变成安全的文件名（保留可读性）。"""
-    h = hashlib.md5(key.encode("utf-8")).hexdigest()[:10]
+    h = hashlib.md5(key.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]  # 仅用于文件名，不涉及安全
     return f"{h}_{key[:60]}" if len(key) <= 60 else f"{h}_{key[:40]}"
 
 
